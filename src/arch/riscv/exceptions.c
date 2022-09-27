@@ -1,6 +1,7 @@
 #include <core.h>
 #include <csrs.h>
 #include <plic.h>
+#include <aplic.h>
 #include <irq.h>
 
 static bool is_external(unsigned long cause) {
@@ -18,7 +19,12 @@ void exception_handler(){
     
     unsigned long scause = CSRR(scause);
     if(is_external(scause)) {
+        #ifndef APLIC
         plic_handle();
+        #endif
+        #ifdef APLIC
+        debug_aplic_handle();
+        #endif
     } else {
        size_t msb = sizeof(unsigned long) * 8 - 1;
        unsigned long id = (scause & ~(1ull << msb)) + 1024;

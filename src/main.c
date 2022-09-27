@@ -22,12 +22,12 @@
 #include <spinlock.h>
 #include <plat.h>
 #include <irq.h>
+#include <aplic.h>
 #include <uart.h>
 #include <timer.h>
 
 #define TIMER_INTERVAL (TIME_S(1))
 
-spinlock_t print_lock = SPINLOCK_INITVAL;
 
 void uart_rx_handler(){
     printf("cpu%d: %s\n",get_cpuid(), __func__);
@@ -53,24 +53,39 @@ void main(void){
         spin_lock(&print_lock);
         printf("Bao bare-metal test guest\n");
         spin_unlock(&print_lock);
+        
+        //irq_init();
 
-        irq_set_handler(UART_IRQ_ID, uart_rx_handler);
-        irq_set_handler(TIMER_IRQ_ID, timer_handler);
-        irq_set_handler(IPI_IRQ_ID, ipi_handler);
+        /**==== Populate handler ====*/
+        //irq_set_handler(UART_IRQ_ID, uart_rx_handler);
+        //irq_set_handler(TIMER_IRQ_ID, timer_handler);
+        //irq_set_handler(IPI_IRQ_ID, ipi_handler);
 
-        uart_enable_rxirq();
+        //uart_enable_rxirq();
 
-        timer_set(TIMER_INTERVAL);
-        irq_enable(TIMER_IRQ_ID);
-        irq_set_prio(TIMER_IRQ_ID, IRQ_MAX_PRIO);
+        //timer_set(TIMER_INTERVAL);
+        //irq_enable(TIMER_IRQ_ID);
+        //irq_set_prio(TIMER_IRQ_ID, IRQ_MAX_PRIO);
 
         master_done = true;
     }
+    /**==== IDC configuration ====*/
+    //irq_cpu_init();
 
-    irq_enable(UART_IRQ_ID);
-    irq_set_prio(UART_IRQ_ID, IRQ_MAX_PRIO);
-    irq_enable(IPI_IRQ_ID);
-    irq_set_prio(IPI_IRQ_ID, IRQ_MAX_PRIO);
+    /**==== External Interrupt configuration ====*/
+    // if(get_cpuid() == 1){
+    //     irq_confg(UART_IRQ_ID, IRQ_MAX_PRIO, 1, 4);
+    // }
+    
+    /**==== Timer and IPI configuration ====*/
+    //irq_enable(IPI_IRQ_ID);
+    //irq_set_prio(IPI_IRQ_ID, IRQ_MAX_PRIO);
+
+    // if (get_cpuid() == 1){
+    //     spin_lock(&print_lock);
+    //     printf("Register Taregt[%d] = %x \r\n", UART_IRQ_ID, aplic_domain->target[UART_IRQ_ID]);
+    //     spin_unlock(&print_lock);
+    // }
 
     while(!master_done);
     spin_lock(&print_lock);
