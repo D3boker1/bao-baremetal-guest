@@ -54,7 +54,7 @@ void main(void){
         printf("Bao bare-metal test guest\n");
         spin_unlock(&print_lock);
         
-        //irq_init();
+        irq_init();
 
         /**==== Populate handler ====*/
         //irq_set_handler(UART_IRQ_ID, uart_rx_handler);
