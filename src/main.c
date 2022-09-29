@@ -27,22 +27,13 @@
 #include <timer.h>
 
 #define TIMER_INTERVAL (TIME_S(1))
-
+#define UART_IRQ_PRIO 1
 
 void uart_rx_handler(){
-    printf("cpu%d: %s\n",get_cpuid(), __func__);
+    static uint32_t i = 0;
+    printf("cpu%d: %s x %d\n",get_cpuid(), __func__, i);
     uart_clear_rxirq();
-}
-
-void ipi_handler(){
-    printf("cpu%d: %s\n", get_cpuid(), __func__);
-    irq_send_ipi(1ull << (get_cpuid() + 1));
-}
-
-void timer_handler(){
-    printf("cpu%d: %s\n", get_cpuid(), __func__);
-    timer_set(TIMER_INTERVAL);
-    irq_send_ipi(1ull << (get_cpuid() + 1));
+    i++;
 }
 
 void main(void){
@@ -51,46 +42,32 @@ void main(void){
 
     if(cpu_is_master()){
         spin_lock(&print_lock);
-        printf("Bao bare-metal test guest\n");
+        printf("APLIC: Bao bare-metal test guest\n");
         spin_unlock(&print_lock);
         
-        irq_init();
-
+        debug_aplic_check_addrs();
+        aplic_init();
+        
         /**==== Populate handler ====*/
-        //irq_set_handler(UART_IRQ_ID, uart_rx_handler);
-        //irq_set_handler(TIMER_IRQ_ID, timer_handler);
-        //irq_set_handler(IPI_IRQ_ID, ipi_handler);
-
-        //uart_enable_rxirq();
-
-        //timer_set(TIMER_INTERVAL);
-        //irq_enable(TIMER_IRQ_ID);
-        //irq_set_prio(TIMER_IRQ_ID, IRQ_MAX_PRIO);
+        irq_set_handler(UART_IRQ_ID, uart_rx_handler);
+        
+        /**==== Initialize the UART ====*/
+        uart_enable_rxirq();
 
         master_done = true;
     }
-    /**==== IDC configuration ====*/
-    //irq_cpu_init();
-
-    /**==== External Interrupt configuration ====*/
-    // if(get_cpuid() == 1){
-    //     irq_confg(UART_IRQ_ID, IRQ_MAX_PRIO, 1, 4);
-    // }
-    
-    /**==== Timer and IPI configuration ====*/
-    //irq_enable(IPI_IRQ_ID);
-    //irq_set_prio(IPI_IRQ_ID, IRQ_MAX_PRIO);
-
-    // if (get_cpuid() == 1){
-    //     spin_lock(&print_lock);
-    //     printf("Register Taregt[%d] = %x \r\n", UART_IRQ_ID, aplic_domain->target[UART_IRQ_ID]);
-    //     spin_unlock(&print_lock);
-    // }
+    /**==== IDC Initialization ====*/
+    irq_cpu_init();
 
     while(!master_done);
     spin_lock(&print_lock);
     printf("cpu %d up\n", get_cpuid());
     spin_unlock(&print_lock);
+
+    /**==== External Interrupt configuration ====*/
+    if(get_cpuid() == 3){
+        irq_confg(UART_IRQ_ID, UART_IRQ_PRIO, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
+    }
 
     while(1) wfi();
 }

@@ -1,5 +1,6 @@
 #include <core.h>
 #include <irq.h>
+#include <stdio.h>
 
 irq_handler_t irq_handlers[IRQ_NUM]; 
 

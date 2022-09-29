@@ -21,7 +21,7 @@
 #include <csrs.h>
 #include <spinlock.h>
 #include <stdio.h>
-#define APLIC_PLAT_IDC_NUM (8)
+#define APLIC_PLAT_IDC_NUM (4)
 
 extern spinlock_t print_lock;
 
@@ -29,48 +29,64 @@ extern spinlock_t print_lock;
 typedef unsigned idcid_t;
 typedef unsigned irqid_t;
 
-/**==== APLIC defines ====*/
-#define APLIC_BASE          (0xd000000)
-#define APLIC_IDC_BASE      (APLIC_BASE+0x4000)
+/**==== APLIC Addresses defines ====*/
+#define APLIC_BASE                      (0xd000000)
+#define APLIC_IDC_OFF                   (0x4000)
+#define APLIC_IDC_BASE                  (APLIC_BASE + APLIC_IDC_OFF)
 
-#define APLIC_MAX_INTERRUPTS    (1024)
-#define APLIC_NUM_SRCCFG_REGS   (APLIC_MAX_INTERRUPTS)
-#define APLIC_NUM_TARGET_REGS   (APLIC_MAX_INTERRUPTS)
+#define APLIC_MAX_INTERRUPTS            (1024)
+#define APLIC_NUM_SRCCFG_REGS           (APLIC_MAX_INTERRUPTS - 1)
+#define APLIC_NUM_TARGET_REGS           (APLIC_MAX_INTERRUPTS - 1)
 /** where x = E or P*/
-#define APLIC_NUM_CLRIx_REGS    (APLIC_MAX_INTERRUPTS / 32)
-#define APLIC_NUM_SETIx_REGS    (APLIC_MAX_INTERRUPTS / 32)
-#define APLIC_IDC_OFF           (0x4000)
+#define APLIC_NUM_CLRIx_REGS            (APLIC_MAX_INTERRUPTS / 32)
+#define APLIC_NUM_SETIx_REGS            (APLIC_MAX_INTERRUPTS / 32)
+
+/**==== Source Mode defines ====*/
+#define APLIC_SOURCECFG_SM_MASK         0x00000007
+#define APLIC_SOURCECFG_SM_INACTIVE     0x0
+#define APLIC_SOURCECFG_SM_DETACH       0x1
+#define APLIC_SOURCECFG_SM_EDGE_RISE    0x4
+#define APLIC_SOURCECFG_SM_EDGE_FALL    0x5
+#define APLIC_SOURCECFG_SM_LEVEL_HIGH   0x6
+#define APLIC_SOURCECFG_SM_LEVEL_LOW    0x7
+#define APLIC_SOURCECFG_SM_DEFAULT      APLIC_SOURCECFG_SM_DETACH
 
 /**==== Data structures for APLIC devices ====*/
 struct aplic_global {
     uint32_t domaincfg;
     uint32_t sourcecfg[APLIC_NUM_SRCCFG_REGS];
-    uint32_t mmsiaddrcfg;
-    uint32_t mmsiaddrcfgh;
-    uint32_t smsiaddrcfg;
-    uint32_t smsiaddrcfgh;
+    uint8_t  reserved1[0x1C00 - 0x1000];
     uint32_t setip[APLIC_NUM_SETIx_REGS];
+    uint8_t  reserved2[0x1CDC - 0x1C80];
     uint32_t setipnum;
+    uint8_t  reserved3[0x1D00 - 0x1CE0];
     uint32_t in_clrip[APLIC_NUM_CLRIx_REGS];
+    uint8_t  reserved4[0x1DDC - 0x1D80];
     uint32_t clripnum;
+    uint8_t  reserved5[0x1E00 - 0x1DE0];
     uint32_t setie[APLIC_NUM_SETIx_REGS];
+    uint8_t  reserved6[0x1EDC - 0x1E80];
     uint32_t setienum;
+    uint8_t  reserved7[0x1F00 - 0x1EE0];
     uint32_t clrie[APLIC_NUM_CLRIx_REGS];
+    uint8_t  reserved8[0x1FDC - 0x1F80];
     uint32_t clrienum;
+    uint8_t  reserved9[0x2000 - 0x1FE0];
     uint32_t setipnum_le;
     uint32_t setipnum_be;
-    uint32_t reserved[0x3000 - 0x2008];
+    uint8_t reserved10[0x3000 - 0x2008];
     uint32_t genmsi;
     uint32_t target[APLIC_NUM_TARGET_REGS];
-};// __attribute__((__packed__, aligned(PAGE_SIZE)));
+} __attribute__((__packed__, aligned(0x1000ULL)));
 
 struct aplic_idc {
     uint32_t idelivery;
     uint32_t iforce;
     uint32_t ithreshold;
+    uint8_t  reserved[0x18-0x0C];
     uint32_t topi;
     uint32_t claimi;
-};// __attribute__((__packed__, aligned(PAGE_SIZE)));
+}; // IDC structure CANNOT be page aligned.
 
 extern volatile struct aplic_global *aplic_domain;
 extern volatile struct aplic_idc *idc;
@@ -308,7 +324,7 @@ bool aplic_idc_get_idelivery(idcid_t idc_id);
  * @param idc_id IDC to force an interruption
  * @param en value to be written
  */
-void aplic_idc_set_iforce(idcid_t idc_id, bool en);
+void aplic_idc_set_iforce(bool en);
 
 /**
  * @brief Read if for a given IDC was forced an interrupt
@@ -375,18 +391,9 @@ bool aplic_idc_valid(idcid_t idc_id);
 /**
  * @brief Handles an incomming interrupt in irq controller.
  * 
- * @param idc_id IDC index from where to read the claimi register 
  * @return uint32_t with interrupt identity (25:16) and priority (7:0)
  */
-uint32_t aplic_handle(idcid_t idc_id);
-
-struct aplic_idc_id {
-    int hart_id;
-    int mode;
-};
-
-int aplic_plat_idc_to_id(struct aplic_idc_id idc);
-struct aplic_idc_id aplic_plat_id_to_idc(idcid_t idc_id);
+uint32_t aplic_handle(void);
 
 /**==== Debug functions ====*/
 
@@ -405,14 +412,31 @@ int debug_aplic_init(void);
  * 
  * @return int int 0 on success; negative value if not;
  */
-int debug_aplic_init_idc(void);
+int debug_aplic_idc_init(void);
 
 /**
- * @brief Catch an interrupt at APLIC.
- * On success prints: "APLIC: interrupt catched"
+ * @brief Catch an interrupt at APLIC. And give info about it.
  * 
  * @return int 0 on success; negative value if not;
  */
 int debug_aplic_handle(void);
 
+/**
+ * @brief Check if all the implemented registers have the correct address.
+ * 
+ * @return int 0 if valid, -1 if an error occurred
+ */
+int debug_aplic_check_addrs(void);
+
+/**
+ * @brief It configures an interrupt, following the correct order.
+ * If an error happens it will be printed the register, IRQ and current value.
+ * 
+ * @param id Interrupt id
+ * @param prio Interrupt priority
+ * @param hart_indx Interrupt target
+ * @param src_mode Interrupt source mode
+ * @return int zero if valid; -1 if an error occurred
+ */
+int debug_aplic_config(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode);;
 #endif //_APLIC_H_

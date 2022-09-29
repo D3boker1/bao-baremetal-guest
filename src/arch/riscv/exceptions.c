@@ -3,6 +3,7 @@
 #include <plic.h>
 #include <aplic.h>
 #include <irq.h>
+#include <stdio.h>
 
 static bool is_external(unsigned long cause) {
     switch(cause) {
@@ -23,7 +24,7 @@ void exception_handler(){
         plic_handle();
         #endif
         #ifdef APLIC
-        debug_aplic_handle();
+        aplic_handle();
         #endif
     } else {
        size_t msb = sizeof(unsigned long) * 8 - 1;

@@ -13,60 +13,81 @@
  * Software Foundation, with a special exception exempting guest code from such
  * license. See the COPYING file in the top-level directory for details.
  */
-
 #include <aplic.h>
 #include <cpu.h>
+#include <irq.h>
 
 spinlock_t print_lock = SPINLOCK_INITVAL;
 
 /*==== APLIC debug define ====*/
 //#define APLIC_DEBUG 1
 
-/**==== APLIC privite defines ====*/
-#define APLIC_DOMAINCFG_DM (1U << 2)
-#define APLIC_DOMAINCFG_IE (1U << 8)
-#define APLIC_DOMAINCFG_CTRL_MASK (0x1FF)
+/**==== APLIC Offsets ====*/
+#define APLIC_DOMAIN_OFF                (0x0000)
+#define APLIC_SOURCECFG_OFF             (0x0004)
+#define APLIC_MMSIADDRCFG_OFF           (0x1BC0)
+#define APLIC_MMSIADDRCFGH_OFF          (0x1BC4)
+#define APLIC_SMSIADDRCFG_OFF           (0x1BC8)
+#define APLIC_SMSIADDRCFGH_OFF          (0x1BCC)
+#define APLIC_SETIP_OFF                 (0x1C00)
+#define APLIC_SETIPNUM_OFF              (0x1CDC)
+#define APLIC_IN_CLRIP_OFF              (0x1D00)
+#define APLIC_CLRIPNUM_OFF              (0x1DDC)
+#define APLIC_SETIE_OFF                 (0x1E00)
+#define APLIC_SETIENUM_OFF              (0x1EDC)
+#define APLIC_CLRIE_OFF                 (0x1F00)
+#define APLIC_CLRIENUM_OFF              (0x1FDC)
+#define APLIC_SETIPNUM_LE_OFF           (0x2000)
+#define APLIC_SETIPNUM_BE_OFF           (0x2004)
+#define APLIC_GENMSI_OFF                (0x3000)
+#define APLIC_TARGET_OFF                (0x3004)
 
-#define SRCCFG_D (1U << 10)
-#define SRCCFG_SM (1U << 0) | (1U << 1) | (1U << 2)
-#define DOMAINCFG_DM (1U << 2)
+/**==== IDC Offsets ====*/
+#define APLIC_IDC_IDELIVERY_OFF         (0x00)
+#define APLIC_IDC_IFORCE_OFF            (0x04)
+#define APLIC_IDC_ITHRESHOLD_OFF        (0x08)
+#define APLIC_IDC_TOPI_OFF              (0x18)
+#define APLIC_IDC_CLAIMI_OFF            (0x1C)
 
-#define INTP_IDENTITY (16)
-#define INTP_IDENTITY_MASK (0x3FF)
+/**==== APLIC fields and masks defines ====*/
+#define APLIC_DOMAINCFG_DM              (1U << 2)
+#define APLIC_DOMAINCFG_IE              (1U << 8)
+#define APLIC_DOMAINCFG_CTRL_MASK       (0x1FF)
 
-#define APLIC_TARGET_IPRIO_MASK (0xFF)
-//#define APLIC_MAX_GEI 0
-#define APLIC_TARGET_DEFAULT 1
+#define SRCCFG_D                        (1U << 10)
+#define SRCCFG_SM                       (1U << 0) | (1U << 1) | (1U << 2)
+#define DOMAINCFG_DM                    (1U << 2)
 
-#define APLIC_DISABLE_IDELIVERY		0
-#define APLIC_ENABLE_IDELIVERY		1
-#define APLIC_DISABLE_IFORCE		0
-#define APLIC_ENABLE_IFORCE	    	1
+#define INTP_IDENTITY                   (16)
+#define INTP_IDENTITY_MASK              (0x3FF)
 
-#define APLIC_SRCCFG_INACT  0
-#define APLIC_SRCCFG_DETACH 1
-#define APLIC_SRCCFG_EDGE1  4
-#define APLIC_SRCCFG_EDGE0  5
-#define APLIC_SRCCFG_LEVEL1 6
-#define APLIC_SRCCFG_LEVEL0 7
+#define APLIC_TARGET_HART_IDX_SHIFT     (18)
+#define APLIC_TARGET_IPRIO_MASK         (0xFF)
+//#define APLIC_MAX_GEI                 (0)
+#define APLIC_TARGET_PRIO_DEFAULT       (1)
 
-#define APLIC_SRCCFG_DEFAULT APLIC_SRCCFG_DETACH    
+#define APLIC_DISABLE_IDELIVERY	        (0)
+#define APLIC_ENABLE_IDELIVERY	        (1)
+#define APLIC_DISABLE_IFORCE	        (0)
+#define APLIC_ENABLE_IFORCE	            (1)
+#define APLIC_IDC_ITHRESHOLD_EN_ALL     (0)
+
+#define APLIC_SRCCFG_DEFAULT            APLIC_SRCCFG_DETACH    
 
 /** Sources State*/
-#define IMPLEMENTED 1
-#define NOT_IMPLEMENTED 0
+#define IMPLEMENTED                     (1)
+#define NOT_IMPLEMENTED                 (0)
 
 /**==== APLIC public data ====*/
 volatile struct aplic_global* aplic_domain = (void*) APLIC_BASE;
 volatile struct aplic_idc* idc = (void*) APLIC_IDC_BASE; 
 
-/**==== APLIC privite data ====*/
+/**==== APLIC private data ====*/
 size_t APLIC_IMPL_INTERRUPTS;
 size_t APLIC_IMPL_INTERRUPTS_REGS;
 uint32_t impl_src[APLIC_MAX_INTERRUPTS];
 
-/**==== APLIC privite functions ====*/
-
+/**==== APLIC private functions ====*/
 /**
  * @brief Populate impl_src array with 1's if source i is an active
  * source in this domain
@@ -76,14 +97,14 @@ uint32_t impl_src[APLIC_MAX_INTERRUPTS];
 static size_t aplic_scan_impl_int(void)
 {
     size_t count = APLIC_MAX_INTERRUPTS-1;
-    for (size_t i = 1; i < APLIC_MAX_INTERRUPTS; i++) {
-        aplic_domain->setienum = i;
+    for (size_t i = 0; i < APLIC_MAX_INTERRUPTS; i++) {
+        aplic_domain->sourcecfg[i] = APLIC_SOURCECFG_SM_DEFAULT;
         impl_src[i] = IMPLEMENTED;
-        if (aplic_domain->setie[i/32] == 0) {
+        if (aplic_domain->sourcecfg[i] == APLIC_SOURCECFG_SM_INACTIVE) {
             impl_src[i] = NOT_IMPLEMENTED;
             count -= 1;           
         }
-        aplic_domain->setie[i/32] = 0;
+        aplic_domain->sourcecfg[i] = APLIC_SOURCECFG_SM_INACTIVE;
     }
     return count;
 }
@@ -100,30 +121,16 @@ void aplic_init(void)
     }
 
     /** Sets the defaults configurations to all interrupts*/
-    for (size_t i = 1; i < APLIC_MAX_INTERRUPTS; i++) { // APLIC_MAX_INTP
-        aplic_domain->sourcecfg[i] = APLIC_SRCCFG_DEFAULT;
-        #ifdef APLIC_DEBUG
-        if(aplic_domain->sourcecfg[i] == APLIC_SRCCFG_DEFAULT){
-            spin_lock(&print_lock);
-            printf("SOURCECFG[%d] = %x\r\n", i, aplic_domain->sourcecfg[i]);
-            spin_unlock(&print_lock);
-        }
-        #endif
+    for (size_t i = 0; i < APLIC_NUM_SRCCFG_REGS; i++) {
+        aplic_domain->sourcecfg[i] = APLIC_SOURCECFG_SM_INACTIVE;
     }
 
     APLIC_IMPL_INTERRUPTS = aplic_scan_impl_int();
 
     /** Sets the default value of hart index and prio for implemented sources*/
-    for (size_t i = 1; i < APLIC_MAX_INTERRUPTS; i++){
+    for (size_t i = 0; i < APLIC_NUM_TARGET_REGS; i++){
         if(impl_src[i] == IMPLEMENTED){
-            aplic_domain->target[i] = APLIC_TARGET_DEFAULT;
-            #ifdef APLIC_DEBUG
-            if(aplic_domain->target[i] == APLIC_TARGET_DEFAULT){
-                spin_lock(&print_lock);
-                printf("TARGET[%d] = %x\r\n", i, aplic_domain->target[i]);
-                spin_unlock(&print_lock);
-            }
-            #endif
+            aplic_domain->target[i] = APLIC_TARGET_PRIO_DEFAULT;
         }
     }
 
@@ -131,8 +138,9 @@ void aplic_init(void)
 }
 
 void aplic_idc_init(void){
-    uint32_t idc_index = aplic_plat_idc_to_id((struct aplic_idc_id){get_cpuid(), PRIV_S});
-    idc[idc_index].ithreshold = 0;
+    uint32_t idc_index = get_cpuid();
+
+    idc[idc_index].ithreshold = APLIC_IDC_ITHRESHOLD_EN_ALL;  
     idc[idc_index].idelivery = APLIC_ENABLE_IDELIVERY;
     idc[idc_index].iforce = APLIC_DISABLE_IFORCE;
 }
@@ -149,10 +157,11 @@ inline uint32_t aplic_get_domaincfg(void)
 
 void aplic_set_sourcecfg(irqid_t int_id, uint32_t val)
 {
-    if(impl_src[int_id] == IMPLEMENTED){
-        if(!(val && SRCCFG_D) && 
-            ((val && SRCCFG_SM) != 2) && ((val && SRCCFG_SM) != 3)){
-                aplic_domain->sourcecfg[int_id] = val;
+    uint32_t real_int_id = int_id - 1;
+    if(impl_src[real_int_id] == IMPLEMENTED){
+        if(!(val & SRCCFG_D) && 
+            ((val & SRCCFG_SM) != 2) && ((val & SRCCFG_SM) != 3)){
+                aplic_domain->sourcecfg[real_int_id] = val & APLIC_SOURCECFG_SM_MASK;
         }
     }
 }
@@ -160,19 +169,21 @@ void aplic_set_sourcecfg(irqid_t int_id, uint32_t val)
 uint32_t aplic_get_sourcecfg(irqid_t int_id)
 {
     uint32_t ret = 0;
-    if(impl_src[int_id] == IMPLEMENTED){
-        ret = aplic_domain->sourcecfg[int_id];
+    uint32_t real_int_id = int_id - 1;
+    if(impl_src[real_int_id] == IMPLEMENTED){
+        ret = aplic_domain->sourcecfg[real_int_id];
     }
     return ret;
 }
 
 void aplic_set_src_mode(irqid_t int_id, uint32_t new_sm)
 {
-    uint32_t val = aplic_domain->sourcecfg[int_id];
+    uint32_t real_int_id = int_id - 1;
+    uint32_t val = aplic_domain->sourcecfg[real_int_id];
     new_sm &= SRCCFG_SM; 
     val &= ~SRCCFG_SM;
     val |= new_sm;
-    aplic_domain->sourcecfg[int_id] = val;
+    aplic_domain->sourcecfg[real_int_id] = val;
 }
 
 void aplic_set_pend(irqid_t int_id)
@@ -288,24 +299,25 @@ void aplic_set_clrienum(irqid_t int_id)
 
 void aplic_set_target(irqid_t int_id, uint32_t val)
 {
+    uint32_t real_int_id = int_id - 1;
     uint8_t priority = val & APLIC_TARGET_IPRIO_MASK;
-    uint32_t hart_index = (val >> 18);
-    //uint32_t guest_index = (aplic_domain->target[int_id] >> 12) & 0x3F;
+    uint32_t hart_index = (val >> APLIC_TARGET_HART_IDX_SHIFT);
+    //uint32_t guest_index = (aplic_domain->target[real_int_id] >> 12) & 0x3F;
 
-    if(impl_src[int_id] == IMPLEMENTED){
+    if(impl_src[real_int_id] == IMPLEMENTED){
         /** Evaluate in what delivery mode the domain is configured*/
         /** Direct Mode*/
         if(((aplic_domain->domaincfg & APLIC_DOMAINCFG_CTRL_MASK) & DOMAINCFG_DM) == 0){
             /** Checks priority and hart index range */
-            if(priority > 0 && priority <= APLIC_TARGET_IPRIO_MASK && 
-               aplic_idc_valid((idcid_t)hart_index)){
-                aplic_domain->target[int_id] = val;
+            if((priority > 0) && (priority <= APLIC_TARGET_IPRIO_MASK) && 
+               (hart_index < APLIC_PLAT_IDC_NUM)){
+                aplic_domain->target[real_int_id] = val;
             }
         }
         /** MSI Mode*/
         else{ 
             // if(guest_index >= 0 && guest_index <= APLIC_MAX_GEI){
-            //     aplic_domain->target[int_id] = val;
+            //     aplic_domain->target[real_int_id] = val;
             // }
         }
     }
@@ -313,23 +325,25 @@ void aplic_set_target(irqid_t int_id, uint32_t val)
 
 uint32_t aplic_get_target(irqid_t int_id)
 {
+    uint32_t real_int_id = int_id - 1;
     uint32_t ret = 0;
-    if(impl_src[int_id] == IMPLEMENTED){
-        ret = aplic_domain->target[int_id];
+    if(impl_src[real_int_id] == IMPLEMENTED){
+        ret = aplic_domain->target[real_int_id];
     }
     return ret;
 }
 
 inline void aplic_set_prio(irqid_t int_id, uint8_t val)
 {
-    uint32_t aux = aplic_domain->target[int_id] & ~APLIC_TARGET_IPRIO_MASK | val;
+    uint32_t real_int_id = int_id - 1;
+    uint32_t aux = aplic_domain->target[real_int_id] & ~APLIC_TARGET_IPRIO_MASK | val;
     // POSSO???
     aplic_set_target(int_id, aux);
 }
 
 void aplic_idc_set_idelivery(idcid_t idc_id, bool en)
 {
-    if(aplic_idc_valid(idc_id)) {
+    if(idc_id < APLIC_PLAT_IDC_NUM) {
         if (en){
             idc[idc_id].idelivery = APLIC_ENABLE_IDELIVERY;
         }else{
@@ -340,16 +354,17 @@ void aplic_idc_set_idelivery(idcid_t idc_id, bool en)
 
 bool aplic_idc_get_idelivery(idcid_t idc_id)
 {
-    if(aplic_idc_valid(idc_id)) {
+    if(idc_id < APLIC_PLAT_IDC_NUM) {
         return idc[idc_id].idelivery && APLIC_ENABLE_IDELIVERY;
     } else{
         return false;
     }
 }
 
-void aplic_idc_set_iforce(idcid_t idc_id, bool en)
+void aplic_idc_set_iforce(bool en)
 {
-    if(aplic_idc_valid(idc_id)) {
+    idcid_t idc_id = get_cpuid();
+    if(idc_id < APLIC_PLAT_IDC_NUM) {
         if (en){
             idc[idc_id].iforce = APLIC_ENABLE_IFORCE;
         }else{
@@ -360,7 +375,7 @@ void aplic_idc_set_iforce(idcid_t idc_id, bool en)
 
 bool aplic_idc_get_iforce(idcid_t idc_id)
 {
-    if(aplic_idc_valid(idc_id)) {
+    if(idc_id < APLIC_PLAT_IDC_NUM) {
         return idc[idc_id].iforce && APLIC_ENABLE_IFORCE;
     } else{
         return false;
@@ -369,7 +384,7 @@ bool aplic_idc_get_iforce(idcid_t idc_id)
 
 void aplic_idc_set_ithreshold(idcid_t idc_id, uint32_t new_th)
 {
-    if(aplic_idc_valid(idc_id)) {
+    if(idc_id < APLIC_PLAT_IDC_NUM) {
         if(new_th <= APLIC_TARGET_IPRIO_MASK){
             idc[idc_id].ithreshold = new_th;
         }
@@ -379,7 +394,7 @@ void aplic_idc_set_ithreshold(idcid_t idc_id, uint32_t new_th)
 uint32_t aplic_idc_get_ithreshold(idcid_t idc_id)
 {
     uint32_t ret = 0;
-    if(aplic_idc_valid(idc_id)) {
+    if(idc_id < APLIC_PLAT_IDC_NUM) {
         ret = idc[idc_id].ithreshold;
     }
     return ret;
@@ -388,7 +403,7 @@ uint32_t aplic_idc_get_ithreshold(idcid_t idc_id)
 uint32_t aplic_idc_get_topi(idcid_t idc_id)
 {
     uint32_t ret = 0;
-    if(aplic_idc_valid(idc_id)) {
+    if(idc_id < APLIC_PLAT_IDC_NUM) {
         ret = idc[idc_id].topi;
     }
     return ret;
@@ -397,49 +412,27 @@ uint32_t aplic_idc_get_topi(idcid_t idc_id)
 uint32_t aplic_idc_get_claimi(idcid_t idc_id)
 {
     uint32_t ret = 0;
-    if(aplic_idc_valid(idc_id)) {
+    if(idc_id < APLIC_PLAT_IDC_NUM) {
         ret = idc[idc_id].claimi;
     }
     return ret;
 }
 
-bool aplic_idc_valid(idcid_t idc_id) {
-    struct aplic_idc_id idc = aplic_plat_id_to_idc(idc_id);
-    return (idc_id < APLIC_PLAT_IDC_NUM) && (idc.mode <= PRIV_S);
-}
-
-uint32_t aplic_handle(idcid_t idc_id){
+uint32_t aplic_handle(void){
     uint32_t ret = 0;
-    if(aplic_idc_valid(idc_id)) {
-        ret = idc[idc_id].claimi;
-    } 
-    return ret;
-}
-
-/**
- * Context organization is spec-out by the vendor, this is the default 
- * mapping found in sifive's plic.
- */
-__attribute__((weak))
-int aplic_plat_idc_to_id(struct aplic_idc_id idc){
-    if(idc.mode != PRIV_M && idc.mode != PRIV_S) return -1;
-    return (idc.hart_id*2) + (idc.mode == PRIV_M ? 0 : 1);
-}
-
-__attribute__((weak))
-struct aplic_idc_id aplic_plat_id_to_idc(idcid_t idc_id){
-    struct aplic_idc_id idc;
-    if(idc_id < APLIC_PLAT_IDC_NUM){
-        idc.hart_id = idc_id/2;
-        idc.mode = (idc_id%2) == 0 ? PRIV_M : PRIV_S; 
-    } else {
-        return (struct aplic_idc_id){-1};
+    uint32_t intp_identity;
+    idcid_t idc_id = get_cpuid();
+    
+    ret = idc[idc_id].claimi;
+    intp_identity = (ret >> INTP_IDENTITY) & INTP_IDENTITY_MASK;
+    if(intp_identity > 0){
+        irq_handle(intp_identity);
     }
-    return idc;
+
+    return ret;
 }
 
 /**==== Debug functions ====*/
-
 int debug_aplic_init(void){
     aplic_init();
     spin_lock(&print_lock);
@@ -448,27 +441,181 @@ int debug_aplic_init(void){
     return 0;
 }
 
-int debug_aplic_init_idc(void){
+int debug_aplic_idc_init(void){
+    uint32_t idc_index = get_cpuid();
+
     aplic_idc_init();
-    spin_lock(&print_lock);
-    printf("APLIC: cpu %d successfully initialize his IDC at APLIC\r\n", get_cpuid());
-    spin_unlock(&print_lock);
+
+    if( idc[idc_index].ithreshold == APLIC_IDC_ITHRESHOLD_EN_ALL && 
+        idc[idc_index].idelivery == APLIC_ENABLE_IDELIVERY &&
+        idc[idc_index].iforce == APLIC_DISABLE_IFORCE){
+        spin_lock(&print_lock);
+        printf("IDC[%d] is good to go\r\n", idc_index);
+        spin_unlock(&print_lock);
+    }
     return 0;
 }
 
-int debug_aplic_handle(){
-    uint32_t claimi_aux = aplic_handle(get_cpuid());
+int debug_aplic_check_addrs(void){
+    if(&aplic_domain->domaincfg != APLIC_BASE+APLIC_DOMAIN_OFF){
+        printf("domaincfg @ %x \r\n", &aplic_domain->domaincfg);
+        return -1;
+    }
+
+    for(size_t i = 0; i < APLIC_NUM_SRCCFG_REGS; i++){
+        if(&aplic_domain->sourcecfg[i] != APLIC_BASE+APLIC_SOURCECFG_OFF+(i*0x4)){
+            printf("sourcecfg[%d] @ %x \r\n", i, &aplic_domain->sourcecfg[i]);
+            return -1;
+        }   
+    }
+
+    for(size_t i = 0; i < (APLIC_MAX_INTERRUPTS/32); i++){
+        if(&aplic_domain->setip[i] != APLIC_BASE+APLIC_SETIP_OFF+(i*0x4)){
+            printf("setip[%d] @ %x \r\n", i, &aplic_domain->setip[i]);
+            return -1;
+        }   
+    }
+    if(&aplic_domain->setipnum != APLIC_BASE+APLIC_SETIPNUM_OFF){
+        printf("setipnum @ %x \r\n", &aplic_domain->setipnum);
+        return -1;
+    }
+    for(size_t i = 0; i < (APLIC_MAX_INTERRUPTS/32); i++){
+        if(&aplic_domain->in_clrip[i] != APLIC_BASE+APLIC_IN_CLRIP_OFF+(i*0x4)){
+            printf("in_clrip[%d] @ %x \r\n", i, &aplic_domain->in_clrip[i]);
+            return -1;
+        }   
+    }
+    if(&aplic_domain->clripnum != APLIC_BASE+APLIC_CLRIPNUM_OFF){
+        printf("clripnum @ %x \r\n", &aplic_domain->clripnum);
+        return -1;
+    }
+
+    for(size_t i = 0; i < (APLIC_MAX_INTERRUPTS/32); i++){
+        if(&aplic_domain->setie[i] != APLIC_BASE+APLIC_SETIE_OFF+(i*0x4)){
+            printf("setie[%d] @ %x \r\n", i, &aplic_domain->setie[i]);
+            return -1;
+        }   
+    }
+    if(&aplic_domain->setienum != APLIC_BASE+APLIC_SETIENUM_OFF){
+        printf("setienum @ %x \r\n", &aplic_domain->setienum);
+        return -1;
+    }
+    for(size_t i = 0; i < (APLIC_MAX_INTERRUPTS/32); i++){
+        if(&aplic_domain->clrie[i] != APLIC_BASE+APLIC_CLRIE_OFF+(i*0x4)){
+            printf("clrie[%d] @ %x \r\n", i, &aplic_domain->clrie[i]);
+            return -1;
+        }   
+    }
+    if(&aplic_domain->clrienum != APLIC_BASE+APLIC_CLRIENUM_OFF){
+        printf("clrienum @ %x \r\n", &aplic_domain->clrienum);
+        return -1;
+    }
+
+    if(&aplic_domain->setipnum_le != APLIC_BASE+APLIC_SETIPNUM_LE_OFF){
+        printf("setipnum_le @ %x \r\n", &aplic_domain->setipnum_le);
+        return -1;
+    }
+    if(&aplic_domain->setipnum_be != APLIC_BASE+APLIC_SETIPNUM_BE_OFF){
+        printf("setipnum_be @ %x \r\n", &aplic_domain->setipnum_be);
+        return -1;
+    }
+
+    if(&aplic_domain->genmsi != APLIC_BASE+APLIC_GENMSI_OFF){
+        printf("genmsi @ %x \r\n", &aplic_domain->genmsi);
+        return -1;
+    }
+
+    for(size_t i = 0; i < APLIC_MAX_INTERRUPTS; i++){
+        if(&aplic_domain->target[i] != APLIC_BASE+APLIC_TARGET_OFF+(i*0x4)){
+            printf("target[%d] @ %x \r\n", i, &aplic_domain->target[i]);
+            return -1;
+        }   
+    }
+
+    for(size_t i = 0; i < APLIC_PLAT_IDC_NUM; i++){
+        uint32_t j = 0;
+        if(i < APLIC_PLAT_IDC_NUM){
+            if(&idc->idelivery != APLIC_IDC_BASE+APLIC_IDC_IDELIVERY_OFF+(j*0x20)){
+                printf("IDC %d idelivery @ %x \r\n", i, &idc->idelivery);
+                return -1;
+            }
+            if(&idc->iforce != APLIC_IDC_BASE+APLIC_IDC_IFORCE_OFF+(j*0x20)){
+                printf("IDC %d iforce @ %x \r\n", i, &idc->iforce);
+                return -1;
+            } 
+            if(&idc->ithreshold != APLIC_IDC_BASE+APLIC_IDC_ITHRESHOLD_OFF+(j*0x20)){
+                printf("IDC %d ithreshold @ %x \r\n", i, &idc->ithreshold);
+                return -1;
+            }
+            if(&idc->topi != APLIC_IDC_BASE+APLIC_IDC_TOPI_OFF+(j*0x20)){
+                printf("IDC %d topi @ %x \r\n", i, &idc->topi);
+                return -1;
+            }
+            if(&idc->claimi != APLIC_IDC_BASE+APLIC_IDC_CLAIMI_OFF+(j*0x20)){
+                printf("IDC %d claimi @ %x \r\n", i, &idc->claimi);
+                return -1;
+            }
+            j++;
+        }
+    }
+
+    return 0;
+}
+
+int debug_aplic_handle(void){
+    uint32_t intp_identity;
+    uint32_t intp_priority;
+    idcid_t idc_id = get_cpuid();
+    uint32_t claimi_aux = aplic_handle();
+
     if(claimi_aux == 0){
         spin_lock(&print_lock);
-        printf("No inetrrupt to handle\r\n");
+        printf("Spurious External Interrupt\r\n");
         spin_unlock(&print_lock);
         return -1;
     }
-    uint32_t intp_priority = claimi_aux & APLIC_TARGET_IPRIO_MASK;
-    uint32_t intp_identity = (claimi_aux >> INTP_IDENTITY) & INTP_IDENTITY_MASK;
+
+    intp_priority = claimi_aux & APLIC_TARGET_IPRIO_MASK;
+    intp_identity = (claimi_aux >> INTP_IDENTITY) & INTP_IDENTITY_MASK;
+
     spin_lock(&print_lock);
-    printf("APLIC: IDC %d successfully catch interrupt %d with priority %d\r\n",
-                            get_cpuid(), intp_identity, intp_priority);
+    printf("IDC[%d] successfully catch interrupt %d with priority %d\r\n",
+                            idc_id, intp_identity, intp_priority);
     spin_unlock(&print_lock);
+
+    return 0;
+}
+
+int debug_aplic_config(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode){
+    uint32_t aux = 0;
+
+    aplic_set_sourcecfg(id, src_mode);
+    aux = aplic_get_sourcecfg(id);
+    if(aux != src_mode){
+        spin_lock(&print_lock);
+        printf("ERROR: set sourcecfg[%d].SM = %d\r\n", id, &aplic_domain->sourcecfg[id-1]);
+        spin_unlock(&print_lock);
+        return -1;
+    }
+
+    aplic_set_target(id, (hart_indx << APLIC_TARGET_HART_IDX_SHIFT) | (prio));
+    aux = aplic_get_target(id);
+    if(aux != ((hart_indx << APLIC_TARGET_HART_IDX_SHIFT) | (prio))){
+        spin_lock(&print_lock);
+        printf("ERROR: target[%d]: hart_indx = %d; prio = %d\r\n", id, hart_indx, prio);
+        spin_unlock(&print_lock);
+        return -1;
+    }
+
+    /** Needs to be after setting the source mode. */
+    aplic_set_ienum(id);
+    
+    if(!aplic_get_ie(id)){
+        spin_lock(&print_lock);
+        printf("ERROR: set IRQ[%d] enable\r\n", id);
+        spin_unlock(&print_lock);
+        return -1;
+    }
+
     return 0;
 }

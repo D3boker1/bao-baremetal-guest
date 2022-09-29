@@ -5,15 +5,10 @@
 #include <aplic.h>
 #include <sbi.h>
 
-void irq_init(void){
-    #ifdef APLIC
-    debug_aplic_init();
-    #endif
-}
 
 void irq_cpu_init(void){
     #ifdef APLIC
-    debug_aplic_init_idc();
+    aplic_idc_init();
     #endif
 }
 
@@ -46,7 +41,10 @@ void irq_send_ipi(unsigned long target_cpu_mask) {
 }
 
 void irq_confg(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode){
-    irq_enable(id);
-    aplic_set_sourcecfg(id, src_mode);
-    aplic_set_target(id, (hart_indx << 18) | (1));
+    #ifndef APLIC
+    
+    #endif
+    #ifdef APLIC
+    debug_aplic_config(id, prio, hart_indx, src_mode);
+    #endif
 }
