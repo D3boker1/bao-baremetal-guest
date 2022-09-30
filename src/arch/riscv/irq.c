@@ -5,6 +5,14 @@
 #include <aplic.h>
 #include <sbi.h>
 
+void irq_init(void){
+    #ifndef APLIC
+    plic_init();
+    #endif
+    #ifdef APLIC
+    aplic_idc_init();
+    #endif
+}
 
 void irq_cpu_init(void){
     #ifdef APLIC
@@ -42,7 +50,8 @@ void irq_send_ipi(unsigned long target_cpu_mask) {
 
 void irq_confg(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode){
     #ifndef APLIC
-    
+    irq_enable(id);
+    irq_set_prio(id, prio);
     #endif
     #ifdef APLIC
     debug_aplic_config(id, prio, hart_indx, src_mode);

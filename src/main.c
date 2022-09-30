@@ -42,11 +42,16 @@ void main(void){
 
     if(cpu_is_master()){
         spin_lock(&print_lock);
+        #ifndef APLIC
+        printf("PLIC: Bao bare-metal test guest\n");
+        #endif
+        #ifdef APLIC
         printf("APLIC: Bao bare-metal test guest\n");
+        #endif
         spin_unlock(&print_lock);
         
         debug_aplic_check_addrs();
-        aplic_init();
+        irq_init();
         
         /**==== Populate handler ====*/
         irq_set_handler(UART_IRQ_ID, uart_rx_handler);
