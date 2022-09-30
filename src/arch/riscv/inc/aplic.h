@@ -133,40 +133,12 @@ uint32_t aplic_get_domaincfg(void);
 void aplic_set_sourcecfg(irqid_t int_id, uint32_t val);
 
 /**
- * @brief Configure the source mode for a given interrupt
- * 
- * @param int_id interruption ID identifies the interrupt to be configured/read.
- * @param new_sm Value to be written into sourcecfg.SM field
- * 
- * Possible values for new_sm are (see table 4.2 from AIA Spec. 0.3.2):
- * 
- * +-------+----------+--------------------------------------------------+
- * | Value |   Name   |                   Description                    |
- * +-------+----------+--------------------------------------------------+
- * |     0 | INACT    | Inactive in this domain                          |
- * |     1 | DETACHED | Active, detached from the source wire            |
- * |     4 | EDGE1    | Active, edge-sensitive; asserted on rising edge  |
- * |     5 | EDGE0    | Active, edge-sensitive; asserted on falling edge |
- * |     6 | LEVEL1   | Active, level-sensitive; asserted when high      |
- * |     7 | LEVEL0   | Active, level-sensitive; asserted when low       |
- * +-------+----------+--------------------------------------------------+
- */
-void aplic_set_src_mode(irqid_t int_id, uint32_t new_sm);
-
-/**
  * @brief Read from aplic's sourcecfg register
  * 
  * @param int_id interruption ID identifies the interrupt to be configured/read.
  * @return uint32_t 32 bit value containing interrupt int_id's configuration.
  */
 uint32_t aplic_get_sourcecfg(irqid_t int_id);
-
-/**
- * @brief Set a given interrupt as pending, using setip registers.
- * 
- * @param int_id Interrupt to be set as pending
- */
-void aplic_set_pend(irqid_t int_id);
 
 /**
  * @brief Set a given interrupt as pending, using setipnum register.
@@ -186,13 +158,6 @@ void aplic_set_pend_num(irqid_t int_id);
 bool aplic_get_pend(irqid_t int_id);
 
 /**
- * @brief Clear a pending bit from a inetrrupt writting to in_clrip.
- * 
- * @param int_id interrupt to clear the pending bit from
- */
-void aplic_set_inclrip(irqid_t int_id);
-
-/**
  * @brief Clear a pending bit from a inetrrupt writting to in_clripnum.
  * Should be faster than aplic_set_inclrip.
  *  
@@ -210,13 +175,6 @@ void aplic_set_clripnum(irqid_t intp_id);
 bool aplic_get_inclrip(irqid_t int_id);
 
 /**
- * @brief Enable a given interrupt writting to setie registers
- * 
- * @param int_id Interrupt to be enabled
- */
-void aplic_set_ie(irqid_t int_id);
-
-/**
  * @brief Enable a given interrupt writting to setienum register
  * Should be faster than aplic_set_ie 
  * 
@@ -231,13 +189,6 @@ void aplic_set_ienum(irqid_t int_id);
  * @return uint32_t 
  */
 bool aplic_get_ie(irqid_t intp_id);
-
-/**
- * @brief Clear enable bit be writting to clrie register of a given interrupt
- * 
- * @param int_id Interrupt to clear the enable bit
- */
-void aplic_set_clrie(irqid_t int_id);
 
 /**
  * @brief Clear enable bit be writting to clrie register of a given interrupt. 
@@ -283,21 +234,6 @@ void aplic_set_target(irqid_t int_id, uint32_t val);
  */
 uint32_t aplic_get_target(irqid_t int_id);
 
-/**
- * @brief Set priority for a given interrupt.
- * 
- * @param int_id Interrupt to set a new value of priority
- * @param val priority. It is a value with IPRIOLEN. 
- * 
- * IPRIOLEN is in range 1 to 8 and is an implementation specific.
- * 
- * If val = 0, then the priority will be set to 1 instead.
- * 
- * Since this is a field of target, and only a valid field when 
- * domaincfg.DM = 0, using this function as no effect if domaincfg.DM = 1
- */
-void aplic_set_prio(irqid_t int_id, uint8_t val);
-
 /**==== APLIC IDC's registers manipulation functions ====*/
 
 /**
@@ -324,7 +260,7 @@ bool aplic_idc_get_idelivery(idcid_t idc_id);
  * @param idc_id IDC to force an interruption
  * @param en value to be written
  */
-void aplic_idc_set_iforce(bool en);
+void aplic_idc_set_iforce(idcid_t idc_id, bool en);
 
 /**
  * @brief Read if for a given IDC was forced an interrupt
@@ -386,14 +322,11 @@ uint32_t aplic_idc_get_topi(idcid_t idc_id);
  */
 uint32_t aplic_idc_get_claimi(idcid_t idc_id);
 
-bool aplic_idc_valid(idcid_t idc_id);
-
 /**
  * @brief Handles an incomming interrupt in irq controller.
  * 
- * @return uint32_t with interrupt identity (25:16) and priority (7:0)
  */
-uint32_t aplic_handle(void);
+void aplic_handle(void);
 
 /**==== Debug functions ====*/
 

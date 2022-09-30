@@ -32,7 +32,7 @@ void irq_set_prio(unsigned id, unsigned prio) {
     plic_set_prio(id, prio);
     #endif
     #ifdef APLIC
-    aplic_set_prio(id, 1);
+    aplic_set_target(id, prio);
     #endif
 }
 

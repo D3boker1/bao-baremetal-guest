@@ -71,6 +71,7 @@ spinlock_t print_lock = SPINLOCK_INITVAL;
 #define APLIC_DISABLE_IFORCE	        (0)
 #define APLIC_ENABLE_IFORCE	            (1)
 #define APLIC_IDC_ITHRESHOLD_EN_ALL     (0)
+#define APLIC_IDC_ITHRESHOLD_DISBL_ALL  (1)
 
 #define APLIC_SRCCFG_DEFAULT            APLIC_SRCCFG_DETACH    
 
@@ -110,6 +111,7 @@ static size_t aplic_scan_impl_int(void)
 }
 
 /**==== APLIC public functions ====*/
+/**==== IDC functions ====*/
 void aplic_init(void)
 {
     aplic_domain->domaincfg = 0;
@@ -176,26 +178,6 @@ uint32_t aplic_get_sourcecfg(irqid_t int_id)
     return ret;
 }
 
-void aplic_set_src_mode(irqid_t int_id, uint32_t new_sm)
-{
-    uint32_t real_int_id = int_id - 1;
-    uint32_t val = aplic_domain->sourcecfg[real_int_id];
-    new_sm &= SRCCFG_SM; 
-    val &= ~SRCCFG_SM;
-    val |= new_sm;
-    aplic_domain->sourcecfg[real_int_id] = val;
-}
-
-void aplic_set_pend(irqid_t int_id)
-{
-    uint32_t reg_indx = int_id / 32;
-    uint32_t intp_to_pend_mask = (1U << (int_id % 32));
-
-    if(impl_src[int_id] == IMPLEMENTED){
-        aplic_domain->setip[reg_indx] |= intp_to_pend_mask; 
-    }
-}
-
 void aplic_set_pend_num(irqid_t int_id)
 {
     if (impl_src[int_id] == IMPLEMENTED)
@@ -214,16 +196,6 @@ bool aplic_get_pend(irqid_t int_id)
         return aplic_domain->setip[reg_indx] & intp_to_pend_mask;
     } else {
         return false;
-    }
-}
-
-void aplic_set_inclrip(irqid_t int_id)
-{
-    uint32_t reg_indx = int_id / 32;
-    uint32_t intp_to_pend_mask = (1U << (int_id % 32));
-
-    if(impl_src[int_id] == IMPLEMENTED){
-        aplic_domain->setip[reg_indx] |= intp_to_pend_mask;
     }
 }
 
@@ -248,16 +220,6 @@ bool aplic_get_inclrip(irqid_t int_id)
     }
 }
 
-void aplic_set_ie(irqid_t int_id)
-{
-    uint32_t reg_indx = int_id / 32;
-    uint32_t intp_to_pend_mask = (1U << (int_id % 32));
-
-    if(impl_src[int_id] == IMPLEMENTED){
-        aplic_domain->setie[reg_indx] |= intp_to_pend_mask; 
-    }
-}
-
 void aplic_set_ienum(irqid_t int_id)
 {
     if (impl_src[int_id] == IMPLEMENTED)
@@ -276,16 +238,6 @@ bool aplic_get_ie(irqid_t int_id)
         return aplic_domain->setie[reg_indx] & intp_to_pend_mask;
     } else {
         return false;
-    }
-}
-
-void aplic_set_clrie(irqid_t int_id)
-{
-    uint32_t reg_indx = int_id / 32;
-    uint32_t intp_to_pend_mask = (1U << (int_id % 32));
-
-    if(impl_src[int_id] == IMPLEMENTED){
-        aplic_domain->clrie[reg_indx] |= intp_to_pend_mask; 
     }
 }
 
@@ -333,14 +285,7 @@ uint32_t aplic_get_target(irqid_t int_id)
     return ret;
 }
 
-inline void aplic_set_prio(irqid_t int_id, uint8_t val)
-{
-    uint32_t real_int_id = int_id - 1;
-    uint32_t aux = aplic_domain->target[real_int_id] & ~APLIC_TARGET_IPRIO_MASK | val;
-    // POSSO???
-    aplic_set_target(int_id, aux);
-}
-
+/**==== IDC functions ====*/
 void aplic_idc_set_idelivery(idcid_t idc_id, bool en)
 {
     if(idc_id < APLIC_PLAT_IDC_NUM) {
@@ -361,9 +306,8 @@ bool aplic_idc_get_idelivery(idcid_t idc_id)
     }
 }
 
-void aplic_idc_set_iforce(bool en)
+void aplic_idc_set_iforce(idcid_t idc_id, bool en)
 {
-    idcid_t idc_id = get_cpuid();
     if(idc_id < APLIC_PLAT_IDC_NUM) {
         if (en){
             idc[idc_id].iforce = APLIC_ENABLE_IFORCE;
@@ -418,18 +362,15 @@ uint32_t aplic_idc_get_claimi(idcid_t idc_id)
     return ret;
 }
 
-uint32_t aplic_handle(void){
+void aplic_handle(void){
     uint32_t ret = 0;
     uint32_t intp_identity;
     idcid_t idc_id = get_cpuid();
     
-    ret = idc[idc_id].claimi;
-    intp_identity = (ret >> INTP_IDENTITY) & INTP_IDENTITY_MASK;
+    intp_identity = (idc[idc_id].claimi >> INTP_IDENTITY) & INTP_IDENTITY_MASK;
     if(intp_identity > 0){
         irq_handle(intp_identity);
     }
-
-    return ret;
 }
 
 /**==== Debug functions ====*/
@@ -566,7 +507,8 @@ int debug_aplic_handle(void){
     uint32_t intp_identity;
     uint32_t intp_priority;
     idcid_t idc_id = get_cpuid();
-    uint32_t claimi_aux = aplic_handle();
+    uint32_t claimi_aux = aplic_idc_get_claimi(idc_id);
+    aplic_handle();
 
     if(claimi_aux == 0){
         spin_lock(&print_lock);
