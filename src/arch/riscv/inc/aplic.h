@@ -371,5 +371,5 @@ int debug_aplic_check_addrs(void);
  * @param src_mode Interrupt source mode
  * @return int zero if valid; -1 if an error occurred
  */
-int debug_aplic_config(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode);;
+int debug_aplic_config(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode);
 #endif //_APLIC_H_

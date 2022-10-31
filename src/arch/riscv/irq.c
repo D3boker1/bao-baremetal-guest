@@ -10,7 +10,7 @@ void irq_init(void){
     plic_init();
     #endif
     #ifdef APLIC
-    aplic_idc_init();
+    aplic_init();
     #endif
 }
 

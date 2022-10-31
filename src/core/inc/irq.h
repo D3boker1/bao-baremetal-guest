@@ -5,7 +5,7 @@
 #include <arch/irq.h>
 #include <spinlock.h>
 
-//#define APLIC 1
+#define APLIC 1
 
 typedef void (*irq_handler_t)(unsigned id);
 
