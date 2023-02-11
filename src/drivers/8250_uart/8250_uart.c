@@ -1,23 +1,4 @@
-/*
- * SPDX-License-Identifier: BSD-2-Clause
- *
- * Copyright (c) 2019 Western Digital Corporation or its affiliates.
- *
- * Authors:
- *   Anup Patel <anup.patel@wdc.com>
- */
-
-// #include <sbi/riscv_io.h>
-// #include <sbi_utils/serial/uart8250.h>
 #include <8250_uart.h>
-
-#define readb(addr)  (*((volatile uint8_t*)addr))
-#define writeb(val, addr)  (*(volatile uint8_t*)(addr) = val)
-#define readw(addr)  (*((volatile uint16_t*)addr))
-#define writew(val, addr)  (*(volatile uint16_t*)(addr) = val)
-#define readl(addr)  (*((volatile uint32_t*)addr))
-#define writel(val, addr)  (*((volatile uint32_t*)addr) = val)
-
 
 /* clang-format off */
 
@@ -79,8 +60,7 @@ static void set_reg(u32 num, u32 val)
 
 void uart8250_putc(char ch)
 {
-	while ((get_reg(UART_LSR_OFFSET) & UART_LSR_THRE) == 0)
-		;
+	while ((get_reg(UART_LSR_OFFSET) & UART_LSR_THRE) == 0);
 
 	set_reg(UART_THR_OFFSET, ch);
 }
@@ -118,9 +98,9 @@ int uart8250_init(unsigned long base, u32 in_freq, u32 baudrate, u32 reg_shift,
 	/* Enable DLAB */
 	set_reg(UART_LCR_OFFSET, 0x80);
 	// /* Set divisor low byte */
-	// set_reg(UART_DLL_OFFSET, bdiv & 0xff);
+	set_reg(UART_DLL_OFFSET, bdiv & 0xff);
 	// /* Set divisor high byte */
-	// set_reg(UART_DLM_OFFSET, (bdiv >> 8) & 0xff);
+	set_reg(UART_DLM_OFFSET, (bdiv >> 8) & 0xff);
 	/* 8 bits, no parity, one stop bit */
 	set_reg(UART_LCR_OFFSET, 0x03);
 	/* Enable FIFO */
