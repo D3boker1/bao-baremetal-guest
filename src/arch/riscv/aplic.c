@@ -529,9 +529,12 @@ int debug_aplic_config(unsigned id, unsigned prio, unsigned hart_indx, unsigned 
     aplic_set_sourcecfg(id, src_mode);
     aplic_set_target(id, (hart_indx << APLIC_TARGET_HART_IDX_SHIFT) | (prio));
     /** Needs to be after setting the source mode. */
+    //aplic_domain->setie[0] = (1UL<<id);
     aplic_set_ienum(id);
+    printf("IRQ[%d].ie = %d\r\n", id, aplic_get_ie(id));
 
     aux = aplic_get_sourcecfg(id);
+    printf("source[%d] = 0x%x\r\n", id, aux);
     if(aux != src_mode){
         spin_lock(&print_lock);
         printf("ERROR: set sourcecfg[%d].SM = %d\r\n", id, aplic_domain->sourcecfg[id-1]);
@@ -540,16 +543,17 @@ int debug_aplic_config(unsigned id, unsigned prio, unsigned hart_indx, unsigned 
     }
 
     aux = aplic_get_target(id);
+    printf("target[%d] = 0x%x\r\n", id, aux);
     if(aux != ((hart_indx << APLIC_TARGET_HART_IDX_SHIFT) | (prio))){
         spin_lock(&print_lock);
-        printf("ERROR: target[%d]: hart_indx = %d; prio = %d\r\n", id, hart_indx, prio);
+        printf("ERROR: aux= %d; target[%d]: hart_indx = %d; prio = %d\r\n", (aux & APLIC_TARGET_IPRIO_MASK), id, hart_indx, prio);
         spin_unlock(&print_lock);
         return -1;
     }
 
     if(!aplic_get_ie(id)){
         spin_lock(&print_lock);
-        printf("ERROR: set IRQ[%d] enable\r\n", id);
+        printf("ERROR enabling IRQ[%d]\r\n", id);
         spin_unlock(&print_lock);
         return -1;
     }

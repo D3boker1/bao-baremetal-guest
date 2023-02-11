@@ -50,7 +50,7 @@ void main(void){
         #endif
         spin_unlock(&print_lock);
         
-        debug_aplic_check_addrs();
+        //debug_aplic_check_addrs();
         irq_init();
         
         /**==== Populate handler ====*/
@@ -61,10 +61,10 @@ void main(void){
 
         master_done = true;
     }
+    
+    while(!master_done);
     /**==== IDC Initialization ====*/
     irq_cpu_init();
-
-    while(!master_done);
     spin_lock(&print_lock);
     printf("cpu %d up\n", get_cpuid());
     spin_unlock(&print_lock);
