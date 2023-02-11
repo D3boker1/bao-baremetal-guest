@@ -1,6 +1,8 @@
 #include <core.h>
 #include <cpu.h>
 #include <page_tables.h>
+#include <aplic.h>
+#include <irq.h>
 #include <plic.h>
 #include <sbi.h>
 #include <csrs.h>
@@ -18,7 +20,12 @@ void arch_init(){
         ret = sbi_hart_start(i, (unsigned long) &_start, 0);
     } while(i++, ret.error == SBI_SUCCESS);
 #endif
-    plic_init();   
+    #ifndef APLIC
+    plic_init();
+    #endif
+    #ifdef APLIC
+    aplic_init();
+    #endif  
     CSRS(sie, SIE_SEIE);
     CSRS(sstatus, SSTATUS_SIE);
 }

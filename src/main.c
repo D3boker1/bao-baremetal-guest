@@ -22,10 +22,12 @@
 #include <spinlock.h>
 #include <plat.h>
 #include <irq.h>
+#include <aplic.h>
 #include <uart.h>
 #include <timer.h>
 
 #define TIMER_INTERVAL (TIME_S(1))
+#define UART_IRQ_PRIO 1
 
 spinlock_t print_lock = SPINLOCK_INITVAL;
 
@@ -67,15 +69,20 @@ void main(void){
         master_done = true;
     }
 
-    irq_enable(UART_IRQ_ID);
-    irq_set_prio(UART_IRQ_ID, IRQ_MAX_PRIO);
-    irq_enable(IPI_IRQ_ID);
-    irq_set_prio(IPI_IRQ_ID, IRQ_MAX_PRIO);
-
     while(!master_done);
+
+    /**==== IDC Initialization ====*/
+    irq_cpu_init();
     spin_lock(&print_lock);
     printf("cpu %d up\n", get_cpuid());
     spin_unlock(&print_lock);
+
+    /**==== Interrupt configuration ====*/
+    if(get_cpuid() == 0){
+        irq_confg(UART_IRQ_ID, UART_IRQ_PRIO, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
+    }
+
+    irq_confg(IPI_IRQ_ID, IRQ_MAX_PRIO, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
 
     while(1) wfi();
 }
