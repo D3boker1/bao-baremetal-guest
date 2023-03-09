@@ -36,16 +36,16 @@ void uart_rx_handler(){
     uart_clear_rxirq();
 }
 
-void ipi_handler(){
-    printf("cpu%d: %s\n", get_cpuid(), __func__);
-    irq_send_ipi(1ull << (get_cpuid() + 1));
-}
+// void ipi_handler(){
+//     printf("cpu%d: %s\n", get_cpuid(), __func__);
+// }
 
-void timer_handler(){
-    printf("cpu%d: %s\n", get_cpuid(), __func__);
-    timer_set(TIMER_INTERVAL);
-    irq_send_ipi(1ull << (get_cpuid() + 1));
-}
+// void timer_handler(){
+//     printf("cpu%d: %s\n", get_cpuid(), __func__);
+//     timer_set(TIMER_INTERVAL);
+//     irq_send_ipi((get_cpuid()));
+//     // aplic_set_pend_num(4);
+// }
 
 void main(void){
 
@@ -57,14 +57,14 @@ void main(void){
         spin_unlock(&print_lock);
 
         irq_set_handler(UART_IRQ_ID, uart_rx_handler);
-        irq_set_handler(TIMER_IRQ_ID, timer_handler);
-        irq_set_handler(IPI_IRQ_ID, ipi_handler);
+        // irq_set_handler(TIMER_IRQ_ID, timer_handler);
+        // irq_set_handler(IPI_IRQ_ID, ipi_handler);
 
         uart_enable_rxirq();
 
-        timer_set(TIMER_INTERVAL);
-        irq_enable(TIMER_IRQ_ID);
-        irq_set_prio(TIMER_IRQ_ID, IRQ_MAX_PRIO);
+        // timer_set(TIMER_INTERVAL);
+        // irq_enable(TIMER_IRQ_ID);
+        // irq_set_prio(TIMER_IRQ_ID, IRQ_MAX_PRIO);
 
         master_done = true;
     }
@@ -82,7 +82,7 @@ void main(void){
         irq_confg(UART_IRQ_ID, UART_IRQ_PRIO, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
     }
 
-    irq_confg(IPI_IRQ_ID, IRQ_MAX_PRIO, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
+    // irq_confg(IPI_IRQ_ID, 1, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
 
     while(1) wfi();
 }

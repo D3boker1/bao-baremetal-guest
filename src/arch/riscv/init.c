@@ -2,6 +2,7 @@
 #include <cpu.h>
 #include <page_tables.h>
 #include <aplic.h>
+#include <imsic.h>
 #include <irq.h>
 #include <plic.h>
 #include <sbi.h>
@@ -24,6 +25,7 @@ void arch_init(){
     plic_init();
     #endif
     #ifdef APLIC
+    imsic_init();
     aplic_init();
     #endif  
     CSRS(sie, SIE_SEIE);

@@ -3,6 +3,7 @@
 #include <csrs.h>
 #include <plic.h>
 #include <aplic.h>
+#include <imsic.h>
 #include <sbi.h>
 
 void irq_cpu_init(void){
@@ -36,7 +37,8 @@ void irq_set_prio(unsigned id, unsigned prio) {
 }
 
 void irq_send_ipi(unsigned long target_cpu_mask) {
-    sbi_send_ipi(target_cpu_mask, 0);
+    // sbi_send_ipi(target_cpu_mask, 0);
+    imsic_send_msi(target_cpu_mask, IPI_IRQ_ID);
 }
 
 void irq_confg(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode){
@@ -46,7 +48,7 @@ void irq_confg(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode
     #endif
     #ifdef APLIC
     aplic_set_sourcecfg(id, src_mode);
-    aplic_set_target(id, (hart_indx << 18) | (prio));
+    // aplic_set_target(id, (hart_indx << 18) | (prio));
     aplic_set_ienum(id);
     #endif
 }

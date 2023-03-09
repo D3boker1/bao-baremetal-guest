@@ -120,11 +120,11 @@ void aplic_init(void)
     APLIC_IMPL_INTERRUPTS = aplic_scan_impl_int();
 
     /** Sets the default value of hart index and prio for implemented sources*/
-    // for (size_t i = 0; i < APLIC_NUM_TARGET_REGS; i++){
-    //     if(impl_src[i] == IMPLEMENTED){
-    //         aplic_domain->target[i] = APLIC_TARGET_PRIO_DEFAULT;
-    //     }
-    // }
+    for (size_t i = 0; i < APLIC_NUM_TARGET_REGS; i++){
+        if(impl_src[i] == IMPLEMENTED){
+            aplic_domain->target[i] = i;//APLIC_TARGET_PRIO_DEFAULT;
+        }
+    }
 
     aplic_domain->domaincfg |= APLIC_DOMAINCFG_IE;
 }
