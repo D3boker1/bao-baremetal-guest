@@ -7,7 +7,9 @@
 #include <sbi.h>
 
 void irq_cpu_init(void){
-    #ifdef APLIC
+    #ifdef IMSIC
+    imsic_init();
+    #elif APLIC
     aplic_idc_init();
     #endif
 }
@@ -38,7 +40,7 @@ void irq_set_prio(unsigned id, unsigned prio) {
 
 void irq_send_ipi(unsigned long target_cpu_mask) {
     // sbi_send_ipi(target_cpu_mask, 0);
-    imsic_send_msi(target_cpu_mask, IPI_IRQ_ID);
+    imsic_send_msi(target_cpu_mask, 13);
 }
 
 void irq_confg(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode){

@@ -23,9 +23,10 @@ void exception_handler(){
         #ifndef APLIC
         plic_handle();
         #endif
-        #ifdef APLIC
-        // aplic_handle();
+        #ifdef IMSIC
         imsic_handle();
+        #elif APLIC
+        aplic_handle();
         #endif
     } else {
        size_t msb = sizeof(unsigned long) * 8 - 1;

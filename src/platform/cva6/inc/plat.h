@@ -5,6 +5,6 @@
 #define PLAT_MEM_SIZE 0x4000000
 
 #define PLAT_TIMER_FREQ (25000000ull)
-#define UART_IRQ_ID (10) // eu alterei a posicao da intp da uart
+#define UART_IRQ_ID (1) 
 
 #endif

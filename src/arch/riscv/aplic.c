@@ -16,6 +16,8 @@
 #include <aplic.h>
 #include <cpu.h>
 #include <irq.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 /**==== APLIC Offsets ====*/
 #define APLIC_DOMAIN_OFF                (0x0000)
@@ -58,6 +60,7 @@
 
 #define APLIC_TARGET_HART_IDX_SHIFT     (18)
 #define APLIC_TARGET_IPRIO_MASK         (0xFF)
+#define APLIC_TARGET_EEID_MASK          (0x7FF)
 //#define APLIC_MAX_GEI                 (0)
 #define APLIC_TARGET_PRIO_DEFAULT       (1)
 
@@ -122,11 +125,17 @@ void aplic_init(void)
     /** Sets the default value of hart index and prio for implemented sources*/
     for (size_t i = 0; i < APLIC_NUM_TARGET_REGS; i++){
         if(impl_src[i] == IMPLEMENTED){
-            aplic_domain->target[i] = i;//APLIC_TARGET_PRIO_DEFAULT;
+            aplic_domain->target[i] = i+1;//APLIC_TARGET_PRIO_DEFAULT;
         }
     }
 
+    #ifdef IMSIC
     aplic_domain->domaincfg |= APLIC_DOMAINCFG_IE;
+    /** Qemu does not support writes to DM bit */
+    aplic_domain->domaincfg |= APLIC_DOMAINCFG_DM;
+    #else
+    aplic_domain->domaincfg |= APLIC_DOMAINCFG_IE;
+    #endif
 }
 
 void aplic_idc_init(void){
@@ -244,24 +253,39 @@ void aplic_set_target(irqid_t int_id, uint32_t val)
     uint32_t real_int_id = int_id - 1;
     uint8_t priority = val & APLIC_TARGET_IPRIO_MASK;
     uint32_t hart_index = (val >> APLIC_TARGET_HART_IDX_SHIFT);
-    //uint32_t guest_index = (aplic_domain->target[real_int_id] >> 12) & 0x3F;
+    /**not supported yet*/
+    // uint32_t guest_index = (val >> 12) & 0x3F;
 
     if(impl_src[real_int_id] == IMPLEMENTED){
         /** Evaluate in what delivery mode the domain is configured*/
-        /** Direct Mode*/
-        if(((aplic_domain->domaincfg & APLIC_DOMAINCFG_CTRL_MASK) & DOMAINCFG_DM) == 0){
-            /** Checks priority and hart index range */
+
+        #ifdef IMSIC
+            if(hart_index <= APLIC_PLAT_IDC_NUM){
+                val = val & ~(APLIC_TARGET_EEID_MASK);
+                aplic_domain->target[real_int_id] = val;
+            }
+        #elif APLIC
             if((priority > 0) && (priority <= APLIC_TARGET_IPRIO_MASK) && 
                (hart_index < APLIC_PLAT_IDC_NUM)){
                 aplic_domain->target[real_int_id] = val;
             }
-        }
-        /** MSI Mode*/
-        else{ 
-            // if(guest_index >= 0 && guest_index <= APLIC_MAX_GEI){
-            //     aplic_domain->target[real_int_id] = val;
-            // }
-        }
+        #endif
+
+        // /** Direct Mode*/
+        // if(((aplic_domain->domaincfg & APLIC_DOMAINCFG_CTRL_MASK) & DOMAINCFG_DM) == 0){
+        //     /** Checks priority and hart index range */
+        //     if((priority > 0) && (priority <= APLIC_TARGET_IPRIO_MASK) && 
+        //        (hart_index < APLIC_PLAT_IDC_NUM)){
+        //         aplic_domain->target[real_int_id] = val;
+        //     }
+        // }
+        // /** MSI Mode*/
+        // else{ 
+        //     if(hart_index <= APLIC_PLAT_IDC_NUM){
+        //         val = val & ~(APLIC_TARGET_EEID_MASK);
+        //         aplic_domain->target[real_int_id] = val;
+        //     }
+        // }
     }
 }
 
