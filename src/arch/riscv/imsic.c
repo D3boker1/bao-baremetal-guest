@@ -52,14 +52,8 @@ void imsic_send_msi(unsigned long target_cpu_mask, uint32_t data){
 void imsic_handle(void){
     uint32_t intp_identity;
     
-    intp_identity = (CSRR(CSR_STOPEI) >> EEID);
-    printf("out: intp_identity = %d\n", intp_identity);
-    while (intp_identity != 0){
-        if(intp_identity > 0){
-            printf("in: intp_identity = %d\n", intp_identity);
-            irq_handle(intp_identity);
-        }
-        intp_identity = CSRR(CSR_STOPEI) >> EEID;
+    while (intp_identity = (CSRR(CSR_STOPEI) >> EEID)){
+        irq_handle(intp_identity);
         CSRW(CSR_STOPEI, 0);
     };
     
