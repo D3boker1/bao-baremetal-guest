@@ -32,20 +32,21 @@
 spinlock_t print_lock = SPINLOCK_INITVAL;
 
 void uart_rx_handler(){
-    printf("cpu%d: %s\n",get_cpuid(), __func__);
+    static count = 0;
+    printf("cpu%d: %s, count: %d\n",get_cpuid(), __func__,  count++);
     uart_clear_rxirq();
 }
 
-// void ipi_handler(){
-//     printf("cpu%d: %s\n", get_cpuid(), __func__);
-// }
+void ipi_handler(){
+    printf("cpu%d: %s\n", get_cpuid(), __func__);
+    // irq_send_ipi((get_cpuid()+1) & 0x3);
+}
 
-// void timer_handler(){
-//     printf("cpu%d: %s\n", get_cpuid(), __func__);
-//     timer_set(TIMER_INTERVAL);
-//     irq_send_ipi((get_cpuid()));
-//     // aplic_set_pend_num(4);
-// }
+void timer_handler(){
+    printf("cpu%d: %s\n", get_cpuid(), __func__);
+    timer_set(TIMER_INTERVAL);
+    irq_send_ipi((get_cpuid()+1) & 0x3);
+}
 
 void main(void){
 
