@@ -72,7 +72,7 @@ void main(void){
 
     while(!master_done);
 
-    /**==== IDC Initialization ====*/
+    /**==== CPU related IRQC Initialization ====*/
     irq_cpu_init();
     spin_lock(&print_lock);
     printf("cpu %d up\n", get_cpuid());
@@ -80,6 +80,7 @@ void main(void){
 
     /**==== Interrupt configuration ====*/
     if(get_cpuid() == 0){
+        /** APLIC config */
         irq_confg(UART_IRQ_ID, UART_IRQ_PRIO, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
     }
 
