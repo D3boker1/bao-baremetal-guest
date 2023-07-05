@@ -26,7 +26,6 @@
 #include <uart.h>
 #include <timer.h>
 #include <fences.h>
-#include <apb_timer.h>
 
 #define TIMER_INTERVAL (TIME_S(1))
 #define UART_IRQ_PRIO 1
@@ -35,37 +34,10 @@
 #else
 #define UART_CHOSEN_IRQ 1
 #endif
-#define PUSH_BUTTON_IRQ     (8)
 
-#define NUM_CPU 1
+#define NUM_CPU 4
 
 spinlock_t print_lock = SPINLOCK_INITVAL;
-
-void apb_timer_handler(){
-    static uint32_t count = 0;
-    
-    if(count < 1000){
-        apb_timer_disable();
-        printf("%d: 0x%lx\n", count, apb_timer_get_counter());
-        // printf("%ld\n", apb_timer_get_counter());
-        apb_timer_set_cmp(RESET_VAL);
-        apb_timer_enable();
-        count++;
-        asm volatile("sfence.vma\n\t" ::: "memory");
-    }
-}
-
-void push_button_handler(){
-    apb_timer_disable();
-    #ifndef IMSIC
-    printf("PLIC: %ld\n", apb_timer_get_counter());
-    #else
-    printf("AIA: %ld\n", apb_timer_get_counter());
-    #endif
-    apb_timer_clr_counter();
-    apb_timer_enable();
-    asm volatile("sfence.vma\n\t" ::: "memory");
-}
 
 void uart_rx_handler(){
     static int count = 0;
@@ -111,18 +83,6 @@ void main(void){
         // timer_set(TIMER_INTERVAL);
         // irq_enable(TIMER_IRQ_ID);
         // irq_set_prio(TIMER_IRQ_ID, 1);
-
-        /** Initialize the APB timer */
-        // apb_timer_disable();
-        // apb_timer_clr_counter();
-        // apb_timer_set_cmp(RESET_VAL);
-        // irq_confg(APB_TIMER_IRQ, APB_TIMER_IRQ, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
-        // apb_timer_enable();
-
-        /** Configure the push button interrupt */
-        // irq_confg(PUSH_BUTTON_IRQ, 2, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
-
-
         master_done = true;
     }
 
