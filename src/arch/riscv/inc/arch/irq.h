@@ -4,7 +4,7 @@
 #ifdef IMSIC
 #define IPI_IRQ_ID (1)
 #else
-#define IPI_IRQ_ID (1025) //1025
+#define IPI_IRQ_ID (1025)
 #endif
 
 #define TIMER_IRQ_ID (1029)
