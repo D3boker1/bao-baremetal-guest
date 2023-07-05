@@ -32,7 +32,7 @@
 #ifdef IMSIC
 #define UART_CHOSEN_IRQ 3
 #else
-#define UART_CHOSEN_IRQ 1
+#define UART_CHOSEN_IRQ UART_IRQ_ID
 #endif
 
 #define NUM_CPU 4
@@ -73,15 +73,13 @@ void main(void){
         spin_unlock(&print_lock);
 
         irq_set_handler(UART_CHOSEN_IRQ, uart_rx_handler);
-        // irq_set_handler(TIMER_IRQ_ID, timer_handler);
-        // irq_set_handler(IPI_IRQ_ID, ipi_handler);
-        // irq_set_handler(PUSH_BUTTON_IRQ, push_button_handler);
-        // irq_set_handler(APB_TIMER_IRQ, apb_timer_handler);
+        irq_set_handler(TIMER_IRQ_ID, timer_handler);
+        irq_set_handler(IPI_IRQ_ID, ipi_handler);
 
         uart_enable_rxirq();
 
-        // timer_set(TIMER_INTERVAL);
-        // irq_enable(TIMER_IRQ_ID);
+        timer_set(TIMER_INTERVAL);
+        irq_enable(TIMER_IRQ_ID);
         // irq_set_prio(TIMER_IRQ_ID, 1);
         master_done = true;
     }
@@ -105,7 +103,7 @@ void main(void){
     }
 
     // #ifndef IMSIC
-    // irq_enable(IPI_IRQ_ID);
+    irq_enable(IPI_IRQ_ID);
     // irq_set_prio(IPI_IRQ_ID, 1);
     // #endif
 
