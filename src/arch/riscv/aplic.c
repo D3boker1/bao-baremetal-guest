@@ -73,10 +73,6 @@
 
 #define APLIC_SRCCFG_DEFAULT            APLIC_SRCCFG_DETACH    
 
-/** Sources State*/
-#define IMPLEMENTED                     (1)
-#define NOT_IMPLEMENTED                 (0)
-
 /**==== APLIC public data ====*/
 volatile struct aplic_global* aplic_domain = (void*) APLIC_BASE;
 volatile struct aplic_idc* idc = (void*) APLIC_IDC_BASE; 
@@ -86,27 +82,6 @@ size_t APLIC_IMPL_INTERRUPTS;
 size_t APLIC_IMPL_INTERRUPTS_REGS;
 uint32_t impl_src[APLIC_MAX_INTERRUPTS];
 
-/**==== APLIC private functions ====*/
-/**
- * @brief Populate impl_src array with 1's if source i is an active
- * source in this domain
- * 
- * @return size_t total number of implemented interrupts
- */
-static size_t aplic_scan_impl_int(void)
-{
-    size_t count = APLIC_MAX_INTERRUPTS-1;
-    for (size_t i = 0; i < APLIC_MAX_INTERRUPTS-1; i++) {
-        aplic_domain->sourcecfg[i] = APLIC_SOURCECFG_SM_DEFAULT;
-        impl_src[i] = IMPLEMENTED;
-        if (aplic_domain->sourcecfg[i] == APLIC_SOURCECFG_SM_INACTIVE) {
-            impl_src[i] = NOT_IMPLEMENTED;
-            count -= 1;           
-        }
-        aplic_domain->sourcecfg[i] = APLIC_SOURCECFG_SM_INACTIVE;
-    }
-    return count;
-}
 
 /**==== APLIC public functions ====*/
 /**==== IDC functions ====*/
@@ -124,20 +99,14 @@ void aplic_init(void)
         aplic_domain->setip[i] = 0;
     }
 
-    APLIC_IMPL_INTERRUPTS = aplic_scan_impl_int();
-
-    /** Sets the default value of hart index and prio for implemented sources*/
-    for (size_t i = 1; i < APLIC_NUM_TARGET_REGS; i++){
-        if(impl_src[i] == IMPLEMENTED){
-            #ifdef IMSIC
-                aplic_domain->target[i-1] = i;
-            #elif APLIC
-                aplic_domain->target[i-1] = APLIC_TARGET_PRIO_DEFAULT;
-
-            #endif
-        }
+    for (size_t i = 0; i < APLIC_MAX_INTERRUPTS-1; i++) {
+        aplic_domain->sourcecfg[i] = APLIC_SOURCECFG_SM_INACTIVE;
+        #ifdef IMSIC
+        aplic_domain->target[i-1] = i;
+        #elif APLIC
+        aplic_domain->target[i-1] = APLIC_TARGET_PRIO_DEFAULT;
+        #endif
     }
-
     aplic_domain->domaincfg |= APLIC_DOMAINCFG_IE;
 }
 
@@ -162,11 +131,9 @@ inline uint32_t aplic_get_domaincfg(void)
 void aplic_set_sourcecfg(irqid_t int_id, uint32_t val)
 {
     uint32_t real_int_id = int_id - 1;
-    if(impl_src[real_int_id] == IMPLEMENTED){
-        if(!(val & SRCCFG_D) && 
-            ((val & SRCCFG_SM) != 2) && ((val & SRCCFG_SM) != 3)){
-                aplic_domain->sourcecfg[real_int_id] = val & APLIC_SOURCECFG_SM_MASK;
-        }
+    if(!(val & SRCCFG_D) && 
+        ((val & SRCCFG_SM) != 2) && ((val & SRCCFG_SM) != 3)){
+            aplic_domain->sourcecfg[real_int_id] = val & APLIC_SOURCECFG_SM_MASK;
     }
 }
 
@@ -174,18 +141,13 @@ uint32_t aplic_get_sourcecfg(irqid_t int_id)
 {
     uint32_t ret = 0;
     uint32_t real_int_id = int_id - 1;
-    if(impl_src[real_int_id] == IMPLEMENTED){
-        ret = aplic_domain->sourcecfg[real_int_id];
-    }
+    ret = aplic_domain->sourcecfg[real_int_id];
     return ret;
 }
 
 void aplic_set_pend_num(irqid_t int_id)
 {
-    if (impl_src[int_id] == IMPLEMENTED)
-    {
-        aplic_domain->setipnum = int_id;
-    }
+    aplic_domain->setipnum = int_id;
 }
 
 bool aplic_get_pend(irqid_t int_id)
@@ -193,20 +155,12 @@ bool aplic_get_pend(irqid_t int_id)
     uint32_t reg_indx = int_id / 32;
     uint32_t intp_to_pend_mask = (1U << (int_id % 32));
 
-    if (impl_src[int_id] == IMPLEMENTED)
-    {
-        return aplic_domain->setip[reg_indx] & intp_to_pend_mask;
-    } else {
-        return false;
-    }
+    return aplic_domain->setip[reg_indx] && intp_to_pend_mask;
 }
 
 void aplic_set_clripnum(irqid_t int_id)
 {
-    if (impl_src[int_id] == IMPLEMENTED)
-    {
-        aplic_domain->clripnum = int_id;
-    }
+    aplic_domain->clripnum = int_id;
 }
 
 bool aplic_get_inclrip(irqid_t int_id)
@@ -214,20 +168,12 @@ bool aplic_get_inclrip(irqid_t int_id)
     uint32_t reg_indx = int_id / 32;
     uint32_t intp_to_pend_mask = (1U << (int_id % 32));
 
-    if (impl_src[int_id] == IMPLEMENTED)
-    {
-        return aplic_domain->in_clrip[reg_indx] & intp_to_pend_mask;
-    } else {
-        return false;
-    }
+    return aplic_domain->in_clrip[reg_indx] && intp_to_pend_mask;
 }
 
 void aplic_set_ienum(irqid_t int_id)
 {
-    if (impl_src[int_id] == IMPLEMENTED)
-    {
-        aplic_domain->setienum = int_id;
-    }
+    aplic_domain->setienum = int_id;
 }
 
 bool aplic_get_ie(irqid_t int_id)
@@ -235,20 +181,12 @@ bool aplic_get_ie(irqid_t int_id)
     uint32_t reg_indx = int_id / 32;
     uint32_t intp_to_pend_mask = (1U << (int_id % 32));
 
-    if (impl_src[int_id] == IMPLEMENTED)
-    {
-        return aplic_domain->setie[reg_indx] & intp_to_pend_mask;
-    } else {
-        return false;
-    }
+    return aplic_domain->setie[reg_indx] & intp_to_pend_mask;
 }
 
 void aplic_set_clrienum(irqid_t int_id)
 {
-    if (impl_src[int_id] == IMPLEMENTED)
-    {
-        aplic_domain->clrienum = int_id;
-    }
+    aplic_domain->clrienum = int_id;
 }
 
 void aplic_set_target(irqid_t int_id, uint32_t val)
@@ -259,46 +197,40 @@ void aplic_set_target(irqid_t int_id, uint32_t val)
     /**not supported yet*/
     // uint32_t guest_index = (val >> 12) & 0x3F;
 
-    if(impl_src[real_int_id] == IMPLEMENTED){
-        /** Evaluate in what delivery mode the domain is configured*/
+    #ifdef IMSIC
+        if(hart_index <= APLIC_PLAT_IDC_NUM){
+            // val = val & ~(APLIC_TARGET_EEID_MASK);
+            aplic_domain->target[real_int_id] = val;
+        }
+    #elif APLIC
+        if((priority > 0) && (priority <= APLIC_TARGET_IPRIO_MASK) && 
+            (hart_index < APLIC_PLAT_IDC_NUM)){
+            aplic_domain->target[real_int_id] = val;
+        }
+    #endif
 
-        #ifdef IMSIC
-            if(hart_index <= APLIC_PLAT_IDC_NUM){
-                // val = val & ~(APLIC_TARGET_EEID_MASK);
-                aplic_domain->target[real_int_id] = val;
-            }
-        #elif APLIC
-            if((priority > 0) && (priority <= APLIC_TARGET_IPRIO_MASK) && 
-               (hart_index < APLIC_PLAT_IDC_NUM)){
-                aplic_domain->target[real_int_id] = val;
-            }
-        #endif
-
-        // /** Direct Mode*/
-        // if(((aplic_domain->domaincfg & APLIC_DOMAINCFG_CTRL_MASK) & DOMAINCFG_DM) == 0){
-        //     /** Checks priority and hart index range */
-        //     if((priority > 0) && (priority <= APLIC_TARGET_IPRIO_MASK) && 
-        //        (hart_index < APLIC_PLAT_IDC_NUM)){
-        //         aplic_domain->target[real_int_id] = val;
-        //     }
-        // }
-        // /** MSI Mode*/
-        // else{ 
-        //     if(hart_index <= APLIC_PLAT_IDC_NUM){
-        //         val = val & ~(APLIC_TARGET_EEID_MASK);
-        //         aplic_domain->target[real_int_id] = val;
-        //     }
-        // }
-    }
+    // /** Direct Mode*/
+    // if(((aplic_domain->domaincfg & APLIC_DOMAINCFG_CTRL_MASK) & DOMAINCFG_DM) == 0){
+    //     /** Checks priority and hart index range */
+    //     if((priority > 0) && (priority <= APLIC_TARGET_IPRIO_MASK) && 
+    //        (hart_index < APLIC_PLAT_IDC_NUM)){
+    //         aplic_domain->target[real_int_id] = val;
+    //     }
+    // }
+    // /** MSI Mode*/
+    // else{ 
+    //     if(hart_index <= APLIC_PLAT_IDC_NUM){
+    //         val = val & ~(APLIC_TARGET_EEID_MASK);
+    //         aplic_domain->target[real_int_id] = val;
+    //     }
+    // }
 }
 
 uint32_t aplic_get_target(irqid_t int_id)
 {
     uint32_t real_int_id = int_id - 1;
     uint32_t ret = 0;
-    if(impl_src[real_int_id] == IMPLEMENTED){
-        ret = aplic_domain->target[real_int_id];
-    }
+    ret = aplic_domain->target[real_int_id];
     return ret;
 }
 
