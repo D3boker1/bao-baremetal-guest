@@ -385,7 +385,8 @@ void aplic_handle(void){
     idcid_t idc_id = get_cpuid();
     
     intp_identity = (idc[idc_id].claimi >> INTP_IDENTITY) & INTP_IDENTITY_MASK;
-    if(intp_identity > 0){
+    while (intp_identity != 0){
         irq_handle(intp_identity);
+        intp_identity = (idc[idc_id].claimi >> INTP_IDENTITY) & INTP_IDENTITY_MASK;
     }
 }
