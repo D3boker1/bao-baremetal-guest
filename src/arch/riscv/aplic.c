@@ -96,7 +96,7 @@ uint32_t impl_src[APLIC_MAX_INTERRUPTS];
 static size_t aplic_scan_impl_int(void)
 {
     size_t count = APLIC_MAX_INTERRUPTS-1;
-    for (size_t i = 0; i < APLIC_MAX_INTERRUPTS; i++) {
+    for (size_t i = 0; i < APLIC_MAX_INTERRUPTS-1; i++) {
         aplic_domain->sourcecfg[i] = APLIC_SOURCECFG_SM_DEFAULT;
         impl_src[i] = IMPLEMENTED;
         if (aplic_domain->sourcecfg[i] == APLIC_SOURCECFG_SM_INACTIVE) {
@@ -113,7 +113,11 @@ static size_t aplic_scan_impl_int(void)
 void aplic_init(void)
 {
     aplic_domain->domaincfg = 0;
-
+    #ifdef IMSIC
+    /** Qemu does not support writes to DM bit */
+    aplic_domain->domaincfg |= APLIC_DOMAINCFG_DM;
+    #endif
+    
     /** Clear all pending and enabled bits*/
     for (size_t i = 0; i < APLIC_NUM_CLRIx_REGS; i++) {
         aplic_domain->setie[i] = 0;
@@ -123,19 +127,18 @@ void aplic_init(void)
     APLIC_IMPL_INTERRUPTS = aplic_scan_impl_int();
 
     /** Sets the default value of hart index and prio for implemented sources*/
-    for (size_t i = 0; i < APLIC_NUM_TARGET_REGS; i++){
+    for (size_t i = 1; i < APLIC_NUM_TARGET_REGS; i++){
         if(impl_src[i] == IMPLEMENTED){
-            aplic_domain->target[i] = i+1;//APLIC_TARGET_PRIO_DEFAULT;
+            #ifdef IMSIC
+                aplic_domain->target[i-1] = i;
+            #elif APLIC
+                aplic_domain->target[i-1] = APLIC_TARGET_PRIO_DEFAULT;
+
+            #endif
         }
     }
 
-    #ifdef IMSIC
     aplic_domain->domaincfg |= APLIC_DOMAINCFG_IE;
-    /** Qemu does not support writes to DM bit */
-    aplic_domain->domaincfg |= APLIC_DOMAINCFG_DM;
-    #else
-    aplic_domain->domaincfg |= APLIC_DOMAINCFG_IE;
-    #endif
 }
 
 void aplic_idc_init(void){
@@ -261,7 +264,7 @@ void aplic_set_target(irqid_t int_id, uint32_t val)
 
         #ifdef IMSIC
             if(hart_index <= APLIC_PLAT_IDC_NUM){
-                val = val & ~(APLIC_TARGET_EEID_MASK);
+                // val = val & ~(APLIC_TARGET_EEID_MASK);
                 aplic_domain->target[real_int_id] = val;
             }
         #elif APLIC

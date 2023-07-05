@@ -39,18 +39,21 @@ void irq_set_prio(unsigned id, unsigned prio) {
 }
 
 void irq_send_ipi(unsigned long target_cpu_mask) {
-    // sbi_send_ipi(target_cpu_mask, 0);
-    imsic_send_msi(target_cpu_mask, 13);
+    #ifdef IMSIC
+    imsic_send_msi(target_cpu_mask, IPI_IRQ_ID);
+    #else
+    sbi_send_ipi(target_cpu_mask, 0);
+    #endif
 }
 
-void irq_confg(unsigned id, unsigned prio, unsigned hart_indx, unsigned src_mode){
+void irq_confg(unsigned id, unsigned prio_eeid, unsigned hart_indx, unsigned src_mode){
     #ifndef APLIC
     irq_enable(id);
-    irq_set_prio(id, prio);
+    irq_set_prio(id, prio_eeid);
     #endif
     #ifdef APLIC
     aplic_set_sourcecfg(id, src_mode);
-    // aplic_set_target(id, (hart_indx << 18) | (prio));
+    aplic_set_target(id, (hart_indx << 18) | prio_eeid);
     aplic_set_ienum(id);
     #endif
 }

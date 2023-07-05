@@ -1,7 +1,12 @@
 #ifndef ARCH_IRQ_H
 #define ARCH_IRQ_H
 
-#define IPI_IRQ_ID (23)
+#ifdef IMSIC
+#define IPI_IRQ_ID (1)
+#else
+#define IPI_IRQ_ID (1025) //1025
+#endif
+
 #define TIMER_IRQ_ID (1029)
 
 #define IRQ_NUM (1030)

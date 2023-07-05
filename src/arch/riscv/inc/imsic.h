@@ -6,12 +6,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-struct imsic_global {
+#define IMSIC_NUM_FILES 1
+
+struct imsic_intp_file_hw
+{
     uint32_t seteipnum_le;
     uint32_t seteipnum_be;
+}__attribute__((__packed__, aligned(0x1000ULL)));
+
+struct imsic_global {
+    struct imsic_intp_file_hw s_file;
+    // struct imsic_intp_file_hw vs_file[IMSIC_NUM_FILES];
 } __attribute__((__packed__, aligned(0x1000ULL)));
 
-extern volatile struct imsic_global *imsic_s_lvl;
+extern volatile struct imsic_global *imsic;
 
 #define NR_INTP 1024
 typedef unsigned idcid_t;

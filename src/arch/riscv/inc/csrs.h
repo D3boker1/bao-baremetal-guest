@@ -81,6 +81,16 @@
 #define PRIV_S  (1)
 #define PRIV_M  (3)
 
+
+#define CSR_STOPI			    (0xdb0)
+#define TOPI_IID_SHIFT			(16)
+
+#define IRQ_S_SOFT			    (1)
+#define IRQ_S_TIMER			    (5)
+#define IRQ_U_EXT			    (8)
+#define IRQ_S_EXT			    (9)
+
+
 #define CSR_STR(s)      #s
 
 #define STVEC_MODE_OFF      (0)

@@ -15,7 +15,7 @@
 #define IMSIC_EIP		        0x80
 #define IMSIC_EIE		        0xC0
 
-volatile struct imsic_global* imsic_s_lvl = (void*) IMSICS_BASE;
+volatile struct imsic_global* imsic = (void*) IMSICS_BASE;
 
 
 void imsic_init(void){
@@ -32,29 +32,21 @@ void imsic_init(void){
     CSRW(CSR_SIREG, 0);
 
     /** Enable all interrupts */
-    // for(int intp_id = 0; intp_id < NR_INTP; intp_id++){
-    //     CSRW(CSR_SISELECT, IMSIC_EIE);
-    //     prev_val = CSRR(CSR_SIREG);
-    //     CSRW(c, prev_val | (1 << intp_id));
-    // }
     CSRW(CSR_SISELECT, IMSIC_EIE);
     CSRW(CSR_SIREG, 0xffffffffffffffff);
 }
 
-/** !!!nao esta complaint com a spec!!!
- *  O hart destino tem de ser escolhido usando o target reg
- *  Para ja ele esta fixo em 0 para tds as intp
-*/
 void imsic_send_msi(unsigned long target_cpu_mask, uint32_t data){
-    imsic_s_lvl[target_cpu_mask].seteipnum_le = data;
+    imsic[target_cpu_mask].s_file.seteipnum_le = data;
 }
 
 void imsic_handle(void){
     uint32_t intp_identity;
     
     while (intp_identity = (CSRR(CSR_STOPEI) >> EEID)){
-        irq_handle(intp_identity);
+        // printf("intp_identity = %d\r\n", intp_identity);
         CSRW(CSR_STOPEI, 0);
+        irq_handle(intp_identity);
     };
     
 }
