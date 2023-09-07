@@ -35,7 +35,7 @@
 #define UART_CHOSEN_IRQ UART_IRQ_ID
 #endif
 
-#define NUM_CPU 4
+#define NUM_CPU 1
 
 spinlock_t print_lock = SPINLOCK_INITVAL;
 
@@ -73,14 +73,14 @@ void main(void){
         spin_unlock(&print_lock);
 
         irq_set_handler(UART_CHOSEN_IRQ, uart_rx_handler);
-        irq_set_handler(TIMER_IRQ_ID, timer_handler);
-        irq_set_handler(IPI_IRQ_ID, ipi_handler);
+        // irq_set_handler(TIMER_IRQ_ID, timer_handler);
+        // irq_set_handler(IPI_IRQ_ID, ipi_handler);
 
         uart_enable_rxirq();
 
-        timer_set(TIMER_INTERVAL);
-        irq_enable(TIMER_IRQ_ID);
-        // irq_set_prio(TIMER_IRQ_ID, 1);
+        // timer_set(TIMER_INTERVAL);
+        // irq_enable(TIMER_IRQ_ID);
+        // // irq_set_prio(TIMER_IRQ_ID, 1);
         master_done = true;
     }
 
@@ -102,10 +102,10 @@ void main(void){
         #endif
     }
 
-    // #ifndef IMSIC
+    #ifndef IMSIC
     irq_enable(IPI_IRQ_ID);
     // irq_set_prio(IPI_IRQ_ID, 1);
-    // #endif
+    #endif
 
     while(1) wfi();
 }
