@@ -4,7 +4,10 @@
 #include <core.h>
 #include <page_tables.h>
 
-#define TEST_PPAGE_BASE (MEM_BASE+(MEM_SIZE/2))
+#define TEST_MEM_BASE 0x80200000ULL
+#define TEST_MEM_SIZE 0x4000000ULL
+
+#define TEST_PPAGE_BASE (TEST_MEM_BASE+(TEST_MEM_SIZE/2))
 
 // Base address of the iDMA programming interface
 #define IDMA_BASE_ADDR             0x50000000ULL

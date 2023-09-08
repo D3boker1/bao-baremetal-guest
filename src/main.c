@@ -27,6 +27,7 @@
 #include <timer.h>
 #include <fences.h>
 #include <idma.h>
+#include <apb_timer.h>
 
 #define TIMER_INTERVAL (TIME_S(1))
 #define UART_IRQ_PRIO 1
@@ -43,28 +44,24 @@ spinlock_t print_lock = SPINLOCK_INITVAL;
 //                IRQs handlers
 //===============================================
 
+/** We have this UART Rx handler for debug and testing purposes */
 void uart_rx_handler(){
     static int count = 0;
     printf("cpu%d: %s, count: %d\n",get_cpuid(), __func__,  count++);
     uart_clear_rxirq();
 }
 
-void ipi_handler(){
-    printf("cpu%d: %s\n", get_cpuid(), __func__);
-}
-
-void timer_handler(){
-    static int targeting_cpu = 0;
-    timer_set(TIMER_INTERVAL);
-    printf("cpu%d: %s, targeting: %d\n", get_cpuid(), __func__, targeting_cpu);
-    #ifdef IMSIC
-    irq_send_ipi(targeting_cpu);
-    #else
-    irq_send_ipi(1ULL<<(targeting_cpu+1));
-    #endif
-    targeting_cpu++;
-    if(targeting_cpu >= NUM_CPU){
-        targeting_cpu = 0;
+void apb_timer_handler(){
+    static uint32_t count = 0;
+    
+    if(count < 1000){
+        apb_timer_disable();
+        count++;
+        // printf("%d: 0x%lx\n", count, apb_timer_get_counter());
+        printf("%ld\n", apb_timer_get_counter()-RESET_VAL);
+        apb_timer_set_cmp(RESET_VAL);
+        apb_timer_enable();
+        asm volatile("sfence.vma\n\t" ::: "memory");
     }
 }
 
@@ -99,21 +96,28 @@ void idma_start_interference(void){
 
 void main(void){    
     static volatile bool master_done = false;
-    
+    int interference_choice;
+
     if(cpu_is_master()){
         spin_lock(&print_lock);
-        printf("Bao bare-metal test guest, %d\n", get_cpuid());
+        printf("Interrupt Latency Study, %d\n", get_cpuid());
         spin_unlock(&print_lock);
 
-        irq_set_handler(UART_CHOSEN_IRQ, uart_rx_handler);
-        // irq_set_handler(TIMER_IRQ_ID, timer_handler);
-        // irq_set_handler(IPI_IRQ_ID, ipi_handler);
+        #ifdef INTERF_ON
+        idma_start_interference();
+        #endif
 
+        irq_set_handler(UART_CHOSEN_IRQ, uart_rx_handler);
         uart_enable_rxirq();
 
-        // timer_set(TIMER_INTERVAL);
-        // irq_enable(TIMER_IRQ_ID);
-        // // irq_set_prio(TIMER_IRQ_ID, 1);
+        irq_set_handler(APB_TIMER_IRQ, apb_timer_handler);
+        /** Initialize the APB timer */
+        apb_timer_disable();
+        apb_timer_clr_counter();
+        apb_timer_set_cmp(RESET_VAL);
+        irq_confg(APB_TIMER_IRQ, APB_TIMER_IRQ, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
+        apb_timer_enable();
+
         master_done = true;
     }
 
@@ -134,11 +138,6 @@ void main(void){
         irq_confg(UART_IRQ_ID, UART_CHOSEN_IRQ, get_cpuid(), APLIC_SOURCECFG_SM_EDGE_RISE);
         #endif
     }
-
-    #ifndef IMSIC
-    irq_enable(IPI_IRQ_ID);
-    // irq_set_prio(IPI_IRQ_ID, 1);
-    #endif
 
     while(1) wfi();
 }

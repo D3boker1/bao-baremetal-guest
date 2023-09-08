@@ -10,7 +10,7 @@
 #define COUNTER_OFF       (0x0)
 #define CONTROL_OFF       (0x4)
 #define COMPARE_OFF       (0x8)
-#define RESET_VAL         (0xC350) // for a 1ms timer
+#define RESET_VAL         (0x7A120) // for a 10ms timer
 
 struct apb_timer {
     uint32_t counter;
