@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define IMSICS_BASE 0x28000000
 #define IMSIC_NUM_FILES 1
 
 struct imsic_intp_file_hw

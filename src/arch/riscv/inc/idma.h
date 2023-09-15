@@ -37,6 +37,7 @@ struct idma {
 }__attribute__((__packed__, aligned(PAGE_SIZE)));
 
 void idma_config_single_transfer(struct idma *dma_ut, uint64_t src_addr, uint64_t dest_addr);
+uint64_t idma_get_last_completed_transac(struct idma *dma_ut);
 
 static inline uintptr_t get_addr_base(size_t page_index){
   return TEST_PPAGE_BASE+(page_index*PAGE_SIZE);

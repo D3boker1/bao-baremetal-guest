@@ -23,6 +23,7 @@
 #include <plat.h>
 #include <irq.h>
 #include <aplic.h>
+#include <imsic.h>
 #include <uart.h>
 #include <timer.h>
 #include <fences.h>
@@ -38,8 +39,25 @@
 #endif
 
 #define NUM_CPU 1
+#define PLAT_NUM_DMAS 4
 
 spinlock_t print_lock = SPINLOCK_INITVAL;
+
+struct idma *dma_ut[PLAT_NUM_DMAS];
+
+static inline void touchread(uintptr_t addr) {
+  asm volatile("" ::: "memory");
+  volatile uint64_t x = *(volatile uint64_t *)addr;
+}
+
+static inline void touchwrite(uintptr_t addr) {
+  *(volatile uint64_t *)addr = 0x0;
+}
+
+static inline void fence_i() {
+    asm volatile("fence.i" ::: "memory");
+}
+
 //===============================================
 //                IRQs handlers
 //===============================================
@@ -57,24 +75,39 @@ void apb_timer_handler(){
     if(count < 1000){
         apb_timer_disable();
         count++;
-        // printf("%d: 0x%lx\n", count, apb_timer_get_counter());
-        printf("%ld\n", apb_timer_get_counter()-RESET_VAL);
+
+        #ifdef DMA_INFO
+        for (size_t i = 0; i < PLAT_NUM_DMAS; i++){
+            printf("idma %d last transaction ID: %ld\n", i, idma_get_last_completed_transac(dma_ut[i]));            
+        }
+        #endif
+        
+        printf("%ld\n", apb_timer_get_counter());
+
+        #ifdef COUNT_HW_INTERF
+        printf("%ld\n", aplic_get_counter());
+        aplic_reset_counter();
+        #endif
+        
+        #ifdef FLUSH_CACHE
+        fence_i();
+        #endif
+
         apb_timer_set_cmp(RESET_VAL);
         apb_timer_enable();
-        asm volatile("sfence.vma\n\t" ::: "memory");
     }
 }
 
 //===============================================
 //                      iDMA
 //===============================================
-void idma_start_interference(void){
+void idma_start_interference(uint64_t idma_base_addr, size_t idma_index){
 /** Instantiate and map the DMA */
-  struct idma *dma_ut = (void*)IDMA_BASE_ADDR;
+  dma_ut[idma_index] = (void*)idma_base_addr+(idma_index*PAGE_SIZE);
 
   /** set iDMA source and destiny adresses */
-  uintptr_t idma_src_addr = get_addr_base(0);
-  uintptr_t idma_dest_addr = get_addr_base(1);
+  uintptr_t idma_src_addr = get_addr_base(0+idma_index);
+  uintptr_t idma_dest_addr = get_addr_base(1+idma_index);
 
   /** Write known values to memory */
   /** Source memory position has 0xdeadbeef */
@@ -82,10 +115,10 @@ void idma_start_interference(void){
   /** Clear the destiny memory position */
   *((volatile uint64_t*) idma_dest_addr) = 0x00;
 
-  idma_config_single_transfer(dma_ut, idma_src_addr, idma_dest_addr);
+  idma_config_single_transfer(dma_ut[idma_index], idma_src_addr, idma_dest_addr);
 
   // Check if iDMA was set up properly and init transfer
-  uint64_t trans_id = dma_ut->next_transfer_id;
+  uint64_t trans_id = dma_ut[idma_index]->next_transfer_id;
   if (!trans_id){
     printf("iDMA misconfigured\r\n");
   }
@@ -104,7 +137,9 @@ void main(void){
         spin_unlock(&print_lock);
 
         #ifdef INTERF_ON
-        idma_start_interference();
+        aplic_start_interf_0();
+        aplic_start_interf_1();
+        idma_start_interference(IDMA_BASE_ADDR, 0);
         #endif
 
         irq_set_handler(UART_CHOSEN_IRQ, uart_rx_handler);

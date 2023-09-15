@@ -3,7 +3,7 @@
 #include <irq.h>
 #include <stdio.h>
 
-#define IMSICS_BASE 0x28000000
+
 #define EEID 16
 
 #define CSR_SISELECT			0x150

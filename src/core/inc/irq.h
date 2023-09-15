@@ -4,8 +4,8 @@
 #include <core.h>
 #include <arch/irq.h>
 
-// #define APLIC 1
-// #define IMSIC 1
+#define APLIC 1
+#define IMSIC 1
 
 typedef void (*irq_handler_t)(unsigned id);
 

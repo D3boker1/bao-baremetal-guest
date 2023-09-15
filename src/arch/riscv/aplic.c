@@ -322,3 +322,20 @@ void aplic_handle(void){
         intp_identity = (idc[idc_id].claimi >> INTP_IDENTITY) & INTP_IDENTITY_MASK;
     }
 }
+
+uint32_t aplic_get_counter(void){
+    return aplic_domain->setipnum_le;
+}
+
+void aplic_reset_counter(void){
+    aplic_domain->setipnum_le = 0;
+}
+
+void aplic_start_interf_0(void){
+    aplic_domain->setipnum_be = 0;
+}
+
+void aplic_start_interf_1(void){
+  uint32_t temp_var = 0x0;
+  temp_var = aplic_domain->setipnum_be;
+}

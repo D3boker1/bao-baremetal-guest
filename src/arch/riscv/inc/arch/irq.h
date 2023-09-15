@@ -3,9 +3,12 @@
 
 #include <irq.h>
 
-// #define APLIC 1
-// #define IMSIC 1
-// #define INTERF_ON 1
+#define APLIC 1
+#define IMSIC 1
+#define INTERF_ON 1
+#define COUNT_HW_INTERF 1
+// #define FLUSH_CACHE 1
+// #define DMA_INFO 1
 
 #ifdef IMSIC
 #define IPI_IRQ_ID (1)

@@ -90,6 +90,13 @@ extern volatile struct aplic_idc *idc;
 
 /**==== Initialization Function ====*/
 
+uint32_t aplic_get_counter(void);
+
+void aplic_reset_counter(void);
+
+void aplic_start_interf_0(void);
+void aplic_start_interf_1(void);
+
 /**
  * @brief Initialize the aplic domain.
  * 
