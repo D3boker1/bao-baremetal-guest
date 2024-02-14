@@ -6,9 +6,10 @@
 
 typedef void (*irq_handler_t)(unsigned id);
 
+void irq_cpu_init (void);
 void irq_handle(unsigned id);
 void irq_set_handler(unsigned id, irq_handler_t handler);
-void irq_enable(unsigned id);
+void irq_enable(unsigned id, unsigned cpu_id);
 void irq_set_prio(unsigned id, unsigned prio);
 void irq_send_ipi(unsigned long target_cpu_mask);
 

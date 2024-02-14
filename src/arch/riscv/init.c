@@ -1,7 +1,12 @@
 #include <core.h>
 #include <cpu.h>
 #include <page_tables.h>
+#include <irq.h>
+#ifdef PLIC
 #include <plic.h>
+#elif APLIC
+#include <aplic.h>
+#endif
 #include <sbi.h>
 #include <csrs.h>
 
@@ -18,7 +23,11 @@ void arch_init(){
         ret = sbi_hart_start(i, (unsigned long) &_start, 0);
     } while(i++, ret.error == SBI_SUCCESS);
 #endif
-    plic_init();   
+    #ifdef PLIC
+    plic_init();
+    #elif APLIC
+    aplic_init();
+    #endif   
     csrs_sie_set(SIE_SEIE);
     csrs_sstatus_set(SSTATUS_SIE);
 }

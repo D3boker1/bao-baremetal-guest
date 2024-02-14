@@ -7,4 +7,9 @@
 #define IRQ_NUM (1030)
 #define IRQ_MAX_PRIO (-1)
 
+/** Use this to choose the IRQC */
+#define PLIC    0
+// #define APLIC   1
+// #define IMSIC   2
+
 #endif /* ARCH_IRQ_H */
