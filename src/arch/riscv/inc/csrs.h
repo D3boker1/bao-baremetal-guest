@@ -193,4 +193,28 @@ CSRS_GEN_ACCESSORS_MERGED(stimecmp, stimecmpl, stimecmph);
 #endif
 
 
+
+#define CSR_STOPI			    (0xdb0)
+#define TOPI_IID_SHIFT			(16)
+
+#define IRQ_S_SOFT			    (1)
+#define IRQ_S_TIMER			    (5)
+#define IRQ_U_EXT			    (8)
+#define IRQ_S_EXT			    (9)
+
+#define CSRR(csr)                                     \
+    ({                                                \
+        unsigned long _temp;                          \
+        asm volatile("csrr  %0, " CSR_STR(csr) "\n\r" \
+                     : "=r"(_temp)::"memory");        \
+        _temp;                                        \
+    })
+
+#define CSRW(csr, rs) \
+    asm volatile("csrw  " CSR_STR(csr) ", %0\n\r" ::"rK"(rs) : "memory")
+#define CSRS(csr, rs) \
+    asm volatile("csrs  " CSR_STR(csr) ", %0\n\r" ::"rK"(rs) : "memory")
+#define CSRC(csr, rs) \
+    asm volatile("csrc  " CSR_STR(csr) ", %0\n\r" ::"rK"(rs) : "memory")
+
 #endif /* __ARCH_CSRS_H__ */

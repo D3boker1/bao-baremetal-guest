@@ -6,6 +6,9 @@
 #include <plic.h>
 #elif APLIC
 #include <aplic.h>
+#elif IMSIC
+#include <aplic.h>
+#include <imsic.h>
 #endif
 #include <sbi.h>
 #include <csrs.h>
@@ -25,7 +28,7 @@ void arch_init(){
 #endif
     #ifdef PLIC
     plic_init();
-    #elif APLIC
+    #else
     aplic_init();
     #endif   
     csrs_sie_set(SIE_SEIE);

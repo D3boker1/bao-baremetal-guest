@@ -5,12 +5,17 @@
 #include <plic.h>
 #elif APLIC
 #include <aplic.h>
+#elif IMSIC
+#include <aplic.h>
+#include <imsic.h>
 #endif
 #include <sbi.h>
 
 void irq_cpu_init(void){
     #ifdef APLIC
     aplic_idc_init();
+    #elif IMSIC
+    imsic_init();
     #endif
 }
 
@@ -18,7 +23,7 @@ void irq_enable(unsigned id, unsigned cpu_id) {
     if(id < 1024) {
         #ifdef PLIC
         plic_enable_interrupt(get_cpuid(), id, true);
-        #elif APLIC
+        #else
         aplic_set_sourcecfg(id, APLIC_SOURCECFG_SM_EDGE_RISE);
         aplic_set_target_hart(id, cpu_id);
         aplic_set_enbl(id);
@@ -39,5 +44,9 @@ void irq_set_prio(unsigned id, unsigned prio) {
 }
 
 void irq_send_ipi(unsigned long target_cpu_mask) {
+    #ifdef IMSIC
+    imsic_send_msi(target_cpu_mask, IPI_IRQ_ID);
+    #else
     sbi_send_ipi(target_cpu_mask, 0);
+    #endif
 }

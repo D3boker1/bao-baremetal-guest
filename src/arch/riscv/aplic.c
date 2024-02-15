@@ -29,6 +29,9 @@ volatile struct aplic_idc_hw* aplic_idc = (void*) APLIC_IDC_BASE;
 void aplic_init(void)
 {
     aplic_control->domaincfg = 0;
+    #ifdef IMSIC
+    aplic_control->domaincfg |= APLIC_DOMAINCFG_DM;
+    #endif
     
     /** Clear all pending and enabled bits*/
     for (size_t i = 0; i < APLIC_NUM_CLRIx_REGS; i++) {
@@ -39,7 +42,11 @@ void aplic_init(void)
     /** Sets the default value of target and sourcecfg */
     for (size_t i = 0; i < APLIC_NUM_TARGET_REGS; i++) {
         aplic_control->sourcecfg[i] = APLIC_SOURCECFG_SM_INACTIVE;
+        #ifdef IMSIC
+        aplic_control->target[i] = i+1;
+        #else
         aplic_control->target[i] = APLIC_TARGET_MIN_PRIO;
+        #endif
     }
     aplic_control->domaincfg |= APLIC_DOMAINCFG_IE;
 }
