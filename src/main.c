@@ -44,7 +44,7 @@ void main(void){
 
     if(cpu_is_master()){
         spin_lock(&print_lock);
-        printf("Bao bare-metal test guest 0\n");
+        printf("Bao bare-metal test guest %d\n", get_cpuid());
         spin_unlock(&print_lock);
 
         #ifdef USE_UART_IRQ
