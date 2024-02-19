@@ -30,7 +30,9 @@
 spinlock_t print_lock = SPINLOCK_INITVAL;
 
 void uart_rx_handler(){
+    spin_lock(&print_lock);
     printf("cpu%d: %s\n",get_cpuid(), __func__);
+    spin_unlock(&print_lock);
     uart_clear_rxirq();
 }
 
