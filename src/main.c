@@ -26,6 +26,7 @@
 #include <timer.h>
 
 #define USE_TIMER_IRQ 
+#define USE_IPI_IRQ  // requires the timer
 #define USE_UART_IRQ
 #define UART_HART 0
 
@@ -46,6 +47,21 @@ void timer_handler(){
     spin_unlock(&print_lock);
     timer_set(TIMER_INTERVAL);
     #ifdef IMSIC
+        irq_send_ipi(get_cpuid() ^ 1);
+    #else
+        irq_send_ipi(1ull << (get_cpuid() + 1));
+    #endif
+}
+
+void ipi_handler(){
+    spin_lock(&print_lock);
+    printf("cpu%d: %s\n", get_cpuid(), __func__);
+    spin_unlock(&print_lock);
+    
+    #ifdef IMSIC
+        if(get_cpuid() == 0)
+            return;
+        
         irq_send_ipi(get_cpuid() ^ 1);
     #else
         irq_send_ipi(1ull << (get_cpuid() + 1));
@@ -73,6 +89,9 @@ void main(void){
             irq_set_prio(TIMER_IRQ_ID, IRQ_MAX_PRIO);
         #endif
 
+        #ifdef USE_IPI_IRQ
+            irq_set_handler(IPI_IRQ_ID, ipi_handler);
+        #endif
 
         master_done = true;
     }
@@ -90,7 +109,12 @@ void main(void){
             #endif
         #endif
     }
-    
+
+    #ifdef USE_IPI_IRQ
+        irq_enable(IPI_IRQ_ID, get_cpuid());
+        irq_set_prio(IPI_IRQ_ID, IPI_IRQ_ID);
+    #endif
+
     while(!master_done);
     spin_lock(&print_lock);
     printf("cpu %d up\n", get_cpuid());

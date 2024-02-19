@@ -15,6 +15,7 @@ struct imsic_intp_file_hw
 
 struct imsic_global {
     struct imsic_intp_file_hw s_file;
+    struct imsic_intp_file_hw vs_file;
 } __attribute__((__packed__, aligned(0x1000ULL)));
 
 extern volatile struct imsic_global *imsic;
