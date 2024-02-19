@@ -17,9 +17,6 @@ volatile struct imsic_global* imsic = (void*) IMSICS_BASE;
 
 
 void imsic_init(void){
-    uint32_t prev_val;
-    uint32_t hold;
-
     /** Enable interrupt delivery */
     CSRW(CSR_SISELECT, IMSIC_EIDELIVERY);
     CSRW(CSR_SIREG, 1);
