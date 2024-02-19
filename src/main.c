@@ -24,6 +24,8 @@
 #include <irq.h>
 #include <uart.h>
 #include <timer.h>
+#define USE_UART_IRQ
+#define UART_HART 0
 
 #define TIMER_INTERVAL (TIME_S(1))
 
@@ -45,18 +47,26 @@ void main(void){
         printf("Bao bare-metal test guest 0\n");
         spin_unlock(&print_lock);
 
-        irq_set_handler(UART_IRQ_ID, uart_rx_handler);
-        uart_enable_rxirq();
+        #ifdef USE_UART_IRQ
+            irq_set_handler(UART_IRQ_ID, uart_rx_handler);
+            uart_enable_rxirq();
+        #endif
 
         master_done = true;
     }
     irq_cpu_init();
 
     /**==== Interrupt configuration ====*/
-    if(get_cpuid() == 0)
+    if(get_cpuid() == UART_HART)
     {
-        irq_enable(UART_IRQ_ID,  get_cpuid());
-        irq_set_prio(UART_IRQ_ID, 1);
+        #ifdef USE_UART_IRQ
+            irq_enable(UART_IRQ_ID, get_cpuid());
+            #ifndef IMSIC
+            irq_set_prio(UART_IRQ_ID, 1);
+            #else
+            irq_set_prio(UART_IRQ_ID, UART_IRQ_ID);
+            #endif
+        #endif
     }
     
     while(!master_done);
