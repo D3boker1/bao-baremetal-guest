@@ -38,7 +38,7 @@ void irq_enable(unsigned id, unsigned cpu_id) {
 void irq_set_prio(unsigned id, unsigned prio) {
     #ifdef PLIC
     plic_set_prio(id, prio);
-    #elif APLIC
+    #else
     aplic_set_target_prio(id, prio);
     #endif
 }
