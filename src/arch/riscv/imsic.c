@@ -35,9 +35,9 @@ void imsic_send_msi(unsigned long target_cpu_mask, uint32_t data){
 }
 
 void imsic_handle(void){
-    uint32_t intp_identity;
+    uint32_t intp_identity = CSRR(CSR_STOPEI) >> EEID;
 
-    if ((intp_identity = (CSRR(CSR_STOPEI) >> EEID)) != 0){
+    if (intp_identity != 0){
         CSRW(CSR_STOPEI, 0);
         irq_handle(intp_identity);
     };
