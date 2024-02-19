@@ -24,10 +24,12 @@
 #include <irq.h>
 #include <uart.h>
 #include <timer.h>
+
+#define USE_TIMER_IRQ 
 #define USE_UART_IRQ
 #define UART_HART 0
 
-#define TIMER_INTERVAL (TIME_S(1))
+#define TIMER_INTERVAL (TIME_S(2))
 
 spinlock_t print_lock = SPINLOCK_INITVAL;
 
@@ -36,6 +38,18 @@ void uart_rx_handler(){
     printf("cpu%d: %s\n",get_cpuid(), __func__);
     spin_unlock(&print_lock);
     uart_clear_rxirq();
+}
+
+void timer_handler(){
+    spin_lock(&print_lock);
+    printf("cpu%d: %s\n", get_cpuid(), __func__);
+    spin_unlock(&print_lock);
+    timer_set(TIMER_INTERVAL);
+    #ifdef IMSIC
+        irq_send_ipi(get_cpuid() ^ 1);
+    #else
+        irq_send_ipi(1ull << (get_cpuid() + 1));
+    #endif
 }
 
 void main(void){
@@ -51,6 +65,14 @@ void main(void){
             irq_set_handler(UART_IRQ_ID, uart_rx_handler);
             uart_enable_rxirq();
         #endif
+
+        #ifdef USE_TIMER_IRQ
+            irq_set_handler(TIMER_IRQ_ID, timer_handler);
+            timer_set(TIMER_INTERVAL);
+            irq_enable(TIMER_IRQ_ID, get_cpuid());
+            irq_set_prio(TIMER_IRQ_ID, IRQ_MAX_PRIO);
+        #endif
+
 
         master_done = true;
     }
