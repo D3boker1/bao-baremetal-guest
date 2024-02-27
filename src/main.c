@@ -86,7 +86,6 @@ void main(void){
             irq_set_handler(TIMER_IRQ_ID, timer_handler);
             timer_set(TIMER_INTERVAL);
             irq_enable(TIMER_IRQ_ID, get_cpuid());
-            irq_set_prio(TIMER_IRQ_ID, IRQ_MAX_PRIO);
         #endif
 
         #ifdef USE_IPI_IRQ
