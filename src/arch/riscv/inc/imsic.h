@@ -5,7 +5,7 @@
 #include <csrs.h>
 
 #define IMSICS_BASE 0x28000000
-#define IMSIC_NUM_FILES 1
+#define IMSIC_NUM_VS_FILES 0
 
 struct imsic_intp_file_hw
 {
@@ -15,7 +15,7 @@ struct imsic_intp_file_hw
 
 struct imsic_global {
     struct imsic_intp_file_hw s_file;
-    struct imsic_intp_file_hw vs_file;
+    struct imsic_intp_file_hw vs_file[IMSIC_NUM_VS_FILES];
 } __attribute__((__packed__, aligned(0x1000ULL)));
 
 extern volatile struct imsic_global *imsic;
