@@ -7,6 +7,7 @@
 #include <fences.h>
 #include <cpu.h>
 #include <irq.h>
+#include <stdio.h>
 
 /** APLIC fields and masks defines */
 #define APLIC_DOMAINCFG_CTRL_MASK      (0x1FF)
@@ -24,7 +25,9 @@
 #define APLIC_IDC_ITHRESHOLD_DISBL_ALL (1)
 
 volatile struct aplic_control_hw* aplic_control = (void*) APLIC_BASE;
+#ifdef APLIC
 volatile struct aplic_idc_hw* aplic_idc = (void*) APLIC_IDC_BASE; 
+#endif
 
 void aplic_init(void)
 {
@@ -51,6 +54,7 @@ void aplic_init(void)
     aplic_control->domaincfg |= APLIC_DOMAINCFG_IE;
 }
 
+#ifdef APLIC
 void aplic_idc_init(void)
 {
     idcid_t idc_id = get_cpuid();
@@ -58,6 +62,7 @@ void aplic_idc_init(void)
     aplic_idc[idc_id].iforce = APLIC_DISABLE_IFORCE;
     aplic_idc[idc_id].idelivery = APLIC_ENABLE_IDELIVERY;
 }
+#endif
 
 void aplic_set_sourcecfg(irqid_t intp_id, uint32_t val)
 {
@@ -82,6 +87,7 @@ void aplic_set_target_hart(irqid_t intp_id, cpuid_t hart)
     aplic_control->target[intp_id - 1] |= hart << APLIC_TARGET_HART_IDX_SHIFT;
 }
 
+#ifdef APLIC
 static irqid_t aplic_idc_get_claimi_intpid(idcid_t idc_id)
 {
     return (aplic_idc[idc_id].claimi >> IDC_CLAIMI_INTP_ID_SHIFT) & IDC_CLAIMI_INTP_ID_MASK;
@@ -96,3 +102,4 @@ void aplic_handle(void)
         irq_handle(intp_identity);
     }
 }
+#endif
