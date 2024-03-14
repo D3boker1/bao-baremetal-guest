@@ -7,7 +7,6 @@
 #include <fences.h>
 #include <cpu.h>
 #include <irq.h>
-#include <stdio.h>
 
 /** APLIC fields and masks defines */
 #define APLIC_DOMAINCFG_CTRL_MASK      (0x1FF)
@@ -84,7 +83,7 @@ void aplic_set_target_hart(irqid_t intp_id, cpuid_t hart)
 {
     aplic_control->target[intp_id - 1] &=
         ~(APLIC_TARGET_HART_IDX_MASK << APLIC_TARGET_HART_IDX_SHIFT);
-    aplic_control->target[intp_id - 1] |= hart << APLIC_TARGET_HART_IDX_SHIFT;
+    aplic_control->target[intp_id - 1] |= (hart << APLIC_TARGET_HART_IDX_SHIFT);
 }
 
 #ifdef APLIC
