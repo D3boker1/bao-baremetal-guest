@@ -91,7 +91,6 @@ struct aplic_control_hw {
     uint32_t target[APLIC_NUM_TARGET_REGS];
 } __attribute__((__packed__, aligned(PAGE_SIZE)));
 
-#ifdef APLIC
 struct aplic_idc_hw {
     uint32_t idelivery;
     uint32_t iforce;
@@ -101,7 +100,6 @@ struct aplic_idc_hw {
     uint32_t claimi;
 } __attribute__((__packed__, aligned(APLIC_IDC_SIZE))); // IDC structure CANNOT
                                                         // be page aligned.
-#endif
 
 extern volatile struct aplic_control_hw* aplic_control;
 #ifdef APLIC
