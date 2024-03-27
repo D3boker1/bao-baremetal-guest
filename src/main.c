@@ -28,7 +28,7 @@
 #define USE_TIMER_IRQ 
 #define USE_IPI_IRQ  // requires the timer
 #define USE_UART_IRQ
-#define UART_HART 0
+#define UART_ID_IMSIC 10 // this number can be anything
 
 #define TIMER_INTERVAL (TIME_S(2))
 
@@ -78,7 +78,11 @@ void main(void){
         spin_unlock(&print_lock);
 
         #ifdef USE_UART_IRQ
+            #ifndef IMSIC
             irq_set_handler(UART_IRQ_ID, uart_rx_handler);
+            #else
+            irq_set_handler(UART_ID_IMSIC, uart_rx_handler);
+            #endif
             uart_enable_rxirq();
         #endif
 
@@ -104,7 +108,7 @@ void main(void){
             #ifndef IMSIC
             irq_set_prio(UART_IRQ_ID, 1);
             #else
-            irq_set_prio(UART_IRQ_ID, UART_IRQ_ID);
+            irq_set_prio(UART_IRQ_ID, UART_ID_IMSIC);
             #endif
         #endif
     }
