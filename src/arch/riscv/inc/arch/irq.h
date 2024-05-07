@@ -7,9 +7,9 @@
 #define IRQ_MAX_PRIO (-1)
 
 /** Use this to choose the IRQC */
-#define PLIC    0
+// #define PLIC    0
 // #define APLIC   1
-// #define IMSIC   2
+#define IMSIC   2
 
 #ifdef IMSIC
 #define IPI_IRQ_ID (1) 
