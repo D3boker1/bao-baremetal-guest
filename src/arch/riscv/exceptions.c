@@ -12,8 +12,8 @@
 
 #ifdef IMSIC
 
-    static bool is_external_core_level_irqc(unsigned long cause){
-        switch(cause) {
+    static bool is_external_core_level_irqc(unsigned long stopi){
+        switch(stopi) {
             case IRQ_S_EXT:
             case IRQ_U_EXT:
                 return true;
