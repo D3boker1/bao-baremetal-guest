@@ -26,6 +26,7 @@ void imsic_init(void){
     CSRW(CSR_SIREG, 0);
 
     /** Enable all interrupts */
+    /** Attention: For the sake of simplicity, this baremetal activates all interruptions. Not recommended!!!*/
     CSRW(CSR_SISELECT, IMSIC_EIE);
     CSRW(CSR_SIREG, 0xffffffffffffffff);
 }
@@ -36,7 +37,7 @@ void imsic_send_msi(unsigned long target_cpu_mask, uint32_t data){
 
 void imsic_handle(void){
     uint32_t intp_identity;
-    
+
     while ((intp_identity = (csr_swap(CSR_STOPEI, 0) >> EEID)) != 0){
         irq_handle(intp_identity);
     };
