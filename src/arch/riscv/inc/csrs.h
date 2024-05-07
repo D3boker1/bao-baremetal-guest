@@ -210,6 +210,15 @@ CSRS_GEN_ACCESSORS_MERGED(stimecmp, stimecmpl, stimecmph);
         _temp;                                        \
     })
 
+#define csr_swap(csr, val)					\
+({								\
+	unsigned long __v = (unsigned long)(val);		\
+	__asm__ __volatile__ ("csrrw %0, " CSR_STR(csr) ", %1"\
+			      : "=r" (__v) : "rK" (__v)		\
+			      : "memory");			\
+	__v;							\
+})
+
 #define CSRW(csr, rs) \
     asm volatile("csrw  " CSR_STR(csr) ", %0\n\r" ::"rK"(rs) : "memory")
 #define CSRS(csr, rs) \
