@@ -28,9 +28,10 @@
 #define USE_TIMER_IRQ 
 #define USE_IPI_IRQ  // requires the timer
 #define USE_UART_IRQ
-#define UART_ID_IMSIC 10 // this number can be anything
+#define UART_HART 1
+#define UART_ID_IMSIC 2 // this number can be anything
 
-#define TIMER_INTERVAL (TIME_S(2))
+#define TIMER_INTERVAL (TIME_S(1))
 
 spinlock_t print_lock = SPINLOCK_INITVAL;
 
@@ -46,22 +47,30 @@ void timer_handler(){
     printf("cpu%d: %s\n", get_cpuid(), __func__);
     spin_unlock(&print_lock);
     timer_set(TIMER_INTERVAL);
-    #ifdef IMSIC
-        irq_send_ipi(get_cpuid() ^ 1);
-    #else
-        irq_send_ipi(1ull << (get_cpuid() + 1));
+
+    #ifdef USE_IPI_IRQ
+        #ifdef IMSIC
+            irq_send_ipi(get_cpuid() ^ 1);
+        #else
+            irq_send_ipi(1ull << (get_cpuid() + 1));
+        #endif
     #endif
 }
 
 void ipi_handler(){
+    static volatile int count = 0;
+
     spin_lock(&print_lock);
     printf("cpu%d: %s\n", get_cpuid(), __func__);
     spin_unlock(&print_lock);
     
     #ifdef IMSIC
-        if(get_cpuid() == 0)
+        if(count == 1) {
+            count = 0;
             return;
+        }
         
+        count++;
         irq_send_ipi(get_cpuid() ^ 1);
     #else
         irq_send_ipi(1ull << (get_cpuid() + 1));
@@ -112,11 +121,6 @@ void main(void){
             #endif
         #endif
     }
-
-    #ifdef USE_IPI_IRQ
-        irq_enable(IPI_IRQ_ID, get_cpuid());
-        irq_set_prio(IPI_IRQ_ID, IPI_IRQ_ID);
-    #endif
 
     while(!master_done);
     spin_lock(&print_lock);
